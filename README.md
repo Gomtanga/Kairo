@@ -54,7 +54,7 @@ KB.md를 통째로 넣어 처리하는 독창적인 접근법을 사용합니다
 | **🧠 DeepSeek V4 Flash 연동** | 1M context, 초저비용 API 호출 |
 | **🎮 자율주행 레벨 시스템** | 상호작용 쌓이면 레벨업 |
 | **🔧 스킬 시스템** | 마이크로스킬 + 빅스킬 계층 구조 |
-| **⏰ 동적 크론 잡** | 사용자 패턴 기반 자동 작업 생성 |
+| **⏰ 동적 크론 잡** (MVP 이후) | 사용자 패턴 기반 자동 작업 생성 |
 | **🔗 지식 자율 결합** | LLM이 지식 간 관계 발견 |
 
 ---
@@ -83,18 +83,19 @@ KB.md를 통째로 넣어 처리하는 독창적인 접근법을 사용합니다
 
 ## 시작하기
 
+> 🚧 **현재 MVP 개발 중입니다.** 아래는 계획된 실행 구조입니다.
+
 ```bash
-# 1. 클론
 git clone https://github.com/Gomtanga/Kairo.git
 cd Kairo
 
-# 2. 의존성 설치
-pip install -r requirements.txt
+# 의존성 설치 (MVP 완성 시)
+pip install streamlit apscheduler python-dotenv requests
 
-# 3. 환경변수 설정
+# 환경변수 설정
 echo "JIMINBOX_API_KEY=your_key" > .env
 
-# 4. 실행
+# 실행 (MVP 완성 시)
 streamlit run app.py
 ```
 
