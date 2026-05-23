@@ -11,3 +11,4 @@ chroma_db/
 *.db
 .DS_Store
 .streamlit/secrets.toml
+.obsidian/
