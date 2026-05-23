@@ -1,25 +1,115 @@
 # Project Kairo 🧠
 
-> **지식이 스스로 자라는 개인 에이전트 시스템**
-> Knowledge Autonomous Agent — Hermes Agent에서 영감을 받은 지식 자율주행 에이전트
+> **Knowledge Base가 하나의 파일로, 에이전트는 그걸 읽고 자란다.**
+> Karpathy의 LLM Wiki 철학 + DeepSeek V4 Flash 1M Context의 만남
 
-## 프로젝트 개요
+---
 
-Kairo는 사용자와의 상호작용을 통해 스스로 성장하는 개인 에이전트 시스템입니다.
-마치 테슬라 FSD가 주행 데이터로 레벨업하듯, Kairo는 대화 데이터를 통해 지식을 쌓고 자율적으로 진화합니다.
+## 개요
 
-### 핵심 컨셉
-- **지식 파이프라인**: 문서 → 임베딩 → 벡터DB → 자동 연결
-- **자율주행 레벨**: 사용자 상호작용에 따른 단계적 자율화
-- **빅스킬/마이크로스킬**: 계층적 스킬 시스템
-- **동적 크론**: 사용자 패턴 기반 자동 작업 생성
+Kairo는 하나의 마크다운 파일(`KB.md`)로 모든 지식을 관리하는 개인 에이전트 시스템입니다.
+RAG(임베딩/벡터DB/청킹) 없이, DeepSeek V4 Flash의 1M 컨텍스트 윈도우에
+KB.md를 통째로 넣어 처리하는 독창적인 접근법을 사용합니다.
+
+### 핵심 철학
+- **"RAG를 구축할 시간에, KB.md를 채워라"**
+- **"단순함이 곧 완성도"** — 복잡한 인프라 없이 하나의 파일로 모든 지식 관리
+- **"함께 성장한다"** — 사용자 상호작용이 쌓일수록 에이전트가 진화
+
+---
+
+## 아키텍처
+
+```
+사용자 ←→ Streamlit UI
+                ↓
+        Kairo Agent (LLM)
+        DeepSeek V4 Flash
+         1M context window
+         Jiminbox API
+                ↓
+        KB.md (Knowledge Base)
+        - User Profile
+        - Project Knowledge
+        - Skills 정의
+        - Knowledge Graph
+        - Growth Log
+```
+
+### 왜 RAG를 안 쓰는가?
+| 항목 | RAG 방식 | Kairo 방식 |
+|------|:--------:|:----------:|
+| 구축 시간 | 2~3일 | 몇 시간 |
+| 임베딩/벡터DB | 필요 | ❌ **불필요** |
+| 유지보수 | 복잡 | ✅ **KB.md 하나만 관리** |
+| LLM 활용 | 검색 + 생성 | ✅ **전체 지식 + 추론** |
+
+---
+
+## 주요 기능
+
+| 기능 | 설명 |
+|------|------|
+| **📝 KB.md 기반 지식 관리** | 하나의 마크다운 파일에 모든 지식 저장 |
+| **🧠 DeepSeek V4 Flash 연동** | 1M context, 초저비용 API 호출 |
+| **🎮 자율주행 레벨 시스템** | 상호작용 쌓이면 레벨업 |
+| **🔧 스킬 시스템** | 마이크로스킬 + 빅스킬 계층 구조 |
+| **⏰ 동적 크론 잡** | 사용자 패턴 기반 자동 작업 생성 |
+| **🔗 지식 자율 결합** | LLM이 지식 간 관계 발견 |
+
+---
 
 ## 기술 스택
-- Python / Streamlit / LangChain / ChromaDB / sentence-transformers / NetworkX
+
+- **Frontend**: Streamlit
+- **LLM**: DeepSeek V4 Flash (Jiminbox API)
+- **지식 저장**: KB.md (단일 마크다운 파일)
+- **스케줄링**: APScheduler
+- **배포**: Streamlit Community Cloud
+
+---
+
+## 사용 오픈소스
+
+| 오픈소스 | 라이선스 | 활용 |
+|----------|---------|------|
+| Streamlit | Apache 2.0 | 웹 UI |
+| APScheduler | MIT | 동적 크론 |
+| python-dotenv | BSD | 환경변수 |
+| Karpathy's LLM Wiki | (참고) | 지식파일 철학 |
+| Hermes Agent | (참고) | 자율주행 개념 |
+
+---
+
+## 시작하기
+
+```bash
+# 1. 클론
+git clone https://github.com/Gomtanga/Kairo.git
+cd Kairo
+
+# 2. 의존성 설치
+pip install -r requirements.txt
+
+# 3. 환경변수 설정
+echo "JIMINBOX_API_KEY=your_key" > .env
+
+# 4. 실행
+streamlit run app.py
+```
+
+---
 
 ## 팀
-- Gomtanga (팀장)
-- 오충만 (팀원)
+
+| 역할 | 이름 |
+|------|------|
+| 팀장 / 에이전트 엔진 | 곰탕 |
+| 프론트엔드 / 문서화 | (팀원) |
+| 데이터 / 발표 | (팀원) |
+
+---
 
 ## 라이선스
+
 MIT
