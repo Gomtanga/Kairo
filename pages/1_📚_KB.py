@@ -1,8 +1,13 @@
 # [KAIRO]
+import re
 import streamlit as st
 import os
 
 from core import KBManager, KnowledgeGraph
+
+
+def strip_html_comments(text: str) -> str:
+    return re.sub(r"<!--.*?-->", "", text).strip()
 
 st.set_page_config(page_title="KB.md - Kairo", page_icon="📚", layout="wide")
 st.title("📚 Knowledge Base")
@@ -25,7 +30,7 @@ viewer_tab, editor_tab = st.tabs(["뷰어", "편집기"])
 with viewer_tab:
     kb_content = kb.read()
     with st.container():
-        st.markdown(kb_content)
+        st.markdown(strip_html_comments(kb_content))
 
     with st.expander("🧩 Knowledge Graph"):
         edges = KnowledgeGraph.parse_edges(kb_content)

@@ -59,7 +59,7 @@ CONTEXT_BUDGET = {
 }
 
 # LLM Parameters
-LLM_TIMEOUT = 30  # seconds
+LLM_TIMEOUT = 60
 LLM_MAX_RETRIES = 1
 LLM_RETRY_DELAY = 5  # seconds
 LLM_MAX_TOKENS = 8192

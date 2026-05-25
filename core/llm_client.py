@@ -26,38 +26,27 @@ class LLMClient:
         temperature: float = None,
         max_tokens: int = None,
     ) -> str:
-        """
-        Send a chat completion request.
-
-        Args:
-            messages: List of {"role": "user"|"assistant"|"system", "content": "..."}
-            kb_content: KB.md content to inject into system prompt
-            temperature: Override default temperature
-            max_tokens: Override default max tokens
-
-        Returns:
-            Assistant response text
-        """
         if not self.api_key:
-            return "⚠️ API 키가 설정되지 않았습니다. .env 파일에 JIMINBOX_API_KEY를 설정해주세요."
+            return "⚠️ API 키가 설정되지 않았습니다. .env.toml 파일을 확인해주세요."
 
         system_prompt = self._build_system_prompt(kb_content)
         full_messages = [{"role": "system", "content": system_prompt}] + messages
-
-        payload = {
-            "model": self.model,
-            "messages": full_messages,
-            "temperature": temperature or LLM_TEMPERATURE,
-            "max_tokens": max_tokens or LLM_MAX_TOKENS,
-        }
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
 
+        tokens = max_tokens or LLM_MAX_TOKENS
+
         for attempt in range(LLM_MAX_RETRIES + 1):
             try:
+                payload = {
+                    "model": self.model,
+                    "messages": full_messages,
+                    "temperature": temperature or LLM_TEMPERATURE,
+                    "max_tokens": tokens,
+                }
                 response = requests.post(
                     f"{self.base_url}/chat/completions",
                     json=payload,
@@ -68,9 +57,12 @@ class LLMClient:
                 data = response.json()
                 message = data["choices"][0]["message"]
                 content = message.get("content", "")
-                if not content:
-                    content = message.get("reasoning_content", "")
-                return content
+                if content:
+                    return content
+                if attempt < LLM_MAX_RETRIES:
+                    tokens = tokens * 2
+                    continue
+                return "💭 응답을 생성하는 중 시간이 부족했습니다. 다시 시도해주세요."
 
             except requests.exceptions.Timeout:
                 if attempt < LLM_MAX_RETRIES:
@@ -106,7 +98,18 @@ class LLMClient:
             "2. KB.md에 정의된 스킬이 질문과 관련 있으면 활용하세요.\n"
             "3. 새로운 정보를 얻었다면 KB.md에 추가할 내용을 제안하세요.\n"
             "4. 지식 간 연결을 발견하면 알려주세요.\n"
-            "5. 한국어로 친근하게 대화하세요.\n"
+            "5. 한국어로 친근하게 대화하세요.\n\n"
+            "KB.md 업데이트 규칙:\n"
+            "- 사용자가 이름, 전공, 취향 등 개인정보를 알려주면 User Profile 섹션을 업데이트하세요.\n"
+            "- 새로운 프로젝트 정보가 나오면 Projects 섹션에 추가하세요.\n"
+            "- 업데이트가 필요할 경우, 응답 맨 끝에 다음 형식으로 블록을 추가하세요:\n"
+            "```kb-update\n"
+            "## 👤 User Profile\n"
+            "- name: 곰탕\n"
+            "- major: Computer Science\n"
+            "```\n"
+            "- 여러 섹션을 업데이트하려면 ```kb-update 블록을 여러 개 사용하세요.\n"
+            "- 블록 안에는 해당 섹션의 헤더(`## `)와 전체 내용을 포함하세요.\n"
         )
 
         if kb_content:

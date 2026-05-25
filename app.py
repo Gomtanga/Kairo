@@ -1,6 +1,15 @@
 # [KAIRO]
+import re
 import streamlit as st
 from core import KBManager, LLMClient, LevelSystem, SkillSystem
+
+
+def extract_kb_updates(response: str) -> tuple[str, list[str]]:
+    display = response
+    updates = re.findall(r"```kb-update\n(.*?)```", response, re.DOTALL)
+    if updates:
+        display = re.sub(r"```kb-update\n.*?```\n?", "", response, flags=re.DOTALL).strip()
+    return display, updates
 
 st.set_page_config(page_title="Kairo", page_icon="🧠", layout="wide")
 
@@ -54,11 +63,29 @@ if user_input:
         for m in st.session_state.messages
     ]
     kb_content = kb.read()
-    response = llm.chat(chat_messages, kb_content=kb_content)
+    raw_response = llm.chat(chat_messages, kb_content=kb_content)
+
+    display_response, updates = extract_kb_updates(raw_response)
+
+    if not display_response.strip():
+        display_response = raw_response
 
     with st.chat_message("assistant"):
-        st.markdown(response)
-    st.session_state.messages.append({"role": "assistant", "content": response})
+        st.markdown(display_response)
+    st.session_state.messages.append({"role": "assistant", "content": display_response})
+
+    if updates:
+        current_kb = kb.read()
+        for update_block in updates:
+            lines = update_block.strip().split("\n")
+            for line in lines:
+                if line.startswith("## "):
+                    kb.update_section(line.strip(), update_block.strip())
+                    break
+            else:
+                current_kb += f"\n\n{update_block.strip()}"
+                kb.write(current_kb)
+        st.toast("📝 KB.md가 업데이트되었습니다!", icon="📝")
 
     new_count = kb.increment_interaction()
     st.session_state.interaction_count = new_count
