@@ -1,44 +1,41 @@
 # [KAIRO] Core configuration module
 import os
-from dotenv import load_dotenv
+import toml
 
-ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
-
-load_dotenv(ENV_PATH)
+ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env.toml")
 
 # API Configuration
-JIMINBOX_API_KEY = os.getenv("JIMINBOX_API_KEY", "")
-JIMINBOX_BASE_URL = os.getenv("JIMINBOX_BASE_URL", "https://api.jiminbox.com/v1")
-LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-v4-flash")
+JIMINBOX_API_KEY = ""
+JIMINBOX_BASE_URL = "https://api.jiminbox.com/v1"
+LLM_MODEL = "deepseek-v4-flash"
+
+
+def _load_toml() -> dict:
+    if os.path.exists(ENV_PATH):
+        data = toml.load(ENV_PATH)
+        return data.get("api", {})
+    return {}
 
 
 def reload_env():
     global JIMINBOX_API_KEY, JIMINBOX_BASE_URL, LLM_MODEL
-    load_dotenv(ENV_PATH, override=True)
-    JIMINBOX_API_KEY = os.getenv("JIMINBOX_API_KEY", "")
-    JIMINBOX_BASE_URL = os.getenv("JIMINBOX_BASE_URL", "https://api.jiminbox.com/v1")
-    LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-v4-flash")
+    env = _load_toml()
+    JIMINBOX_API_KEY = env.get("JIMINBOX_API_KEY", "")
+    JIMINBOX_BASE_URL = env.get("JIMINBOX_BASE_URL", "https://api.jiminbox.com/v1")
+    LLM_MODEL = env.get("LLM_MODEL", "deepseek-v4-flash")
 
 
 def save_env(values: dict):
-    lines = []
-    for key, value in values.items():
-        lines.append(f"{key}={value}")
     with open(ENV_PATH, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines) + "\n")
+        toml.dump({"api": values}, f)
     reload_env()
 
 
 def read_env() -> dict:
-    result = {}
-    if os.path.exists(ENV_PATH):
-        with open(ENV_PATH, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, _, value = line.partition("=")
-                    result[key.strip()] = value.strip()
-    return result
+    return _load_toml()
+
+
+reload_env()
 
 # KB Configuration
 KB_PATH = os.getenv("KB_PATH", os.path.join(os.path.dirname(os.path.dirname(__file__)), "kb.md"))
