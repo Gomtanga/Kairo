@@ -2,12 +2,43 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+
+load_dotenv(ENV_PATH)
 
 # API Configuration
 JIMINBOX_API_KEY = os.getenv("JIMINBOX_API_KEY", "")
-JIMINBOX_BASE_URL = os.getenv("JIMINBOX_BASE_URL", "https://api.jiminbox.ai/v1")
-LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")
+JIMINBOX_BASE_URL = os.getenv("JIMINBOX_BASE_URL", "https://api.jiminbox.com/v1")
+LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-v4-flash")
+
+
+def reload_env():
+    global JIMINBOX_API_KEY, JIMINBOX_BASE_URL, LLM_MODEL
+    load_dotenv(ENV_PATH, override=True)
+    JIMINBOX_API_KEY = os.getenv("JIMINBOX_API_KEY", "")
+    JIMINBOX_BASE_URL = os.getenv("JIMINBOX_BASE_URL", "https://api.jiminbox.com/v1")
+    LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-v4-flash")
+
+
+def save_env(values: dict):
+    lines = []
+    for key, value in values.items():
+        lines.append(f"{key}={value}")
+    with open(ENV_PATH, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+    reload_env()
+
+
+def read_env() -> dict:
+    result = {}
+    if os.path.exists(ENV_PATH):
+        with open(ENV_PATH, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, _, value = line.partition("=")
+                    result[key.strip()] = value.strip()
+    return result
 
 # KB Configuration
 KB_PATH = os.getenv("KB_PATH", os.path.join(os.path.dirname(os.path.dirname(__file__)), "kb.md"))
@@ -34,7 +65,7 @@ CONTEXT_BUDGET = {
 LLM_TIMEOUT = 30  # seconds
 LLM_MAX_RETRIES = 1
 LLM_RETRY_DELAY = 5  # seconds
-LLM_MAX_TOKENS = 4096
+LLM_MAX_TOKENS = 8192
 LLM_TEMPERATURE = 0.7
 
 # Cron Configuration
