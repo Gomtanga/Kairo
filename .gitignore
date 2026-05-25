@@ -12,3 +12,4 @@ chroma_db/
 .DS_Store
 .streamlit/secrets.toml
 .obsidian/
+*.bak
