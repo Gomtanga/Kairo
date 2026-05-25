@@ -66,7 +66,11 @@ class LLMClient:
                 )
                 response.raise_for_status()
                 data = response.json()
-                return data["choices"][0]["message"]["content"]
+                message = data["choices"][0]["message"]
+                content = message.get("content", "")
+                if not content:
+                    content = message.get("reasoning_content", "")
+                return content
 
             except requests.exceptions.Timeout:
                 if attempt < LLM_MAX_RETRIES:
