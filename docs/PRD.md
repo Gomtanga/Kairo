@@ -150,7 +150,7 @@ LLM의 긴 컨텍스트(1M tokens)에 통째로 넣어 처리합니다.
 |:---:|------|------|
 | 🅿️ | **Streamlit 채팅 UI** | 사용자와 에이전트의 대화 인터페이스 |
 | 🅿️ | **KB.md 관리** | 파일 읽기/쓰기/업데이트 자동화 |
-| 🅿️ | **DeepSeek V4 Flash 연동** | Jiminbox API로 LLM 호출 |
+| 🅿️ | **DeepSeek V4 Flash 연동** | Custom LLM Endpoint로 LLM 호출 |
 | 🅿️ | **기본 에이전트 3종** | 웹리서치, 플래너, 코딩 도우미 |
 | 🅿️ | **자율주행 레벨 시스템** | 상호작용 기반 레벨업 |
 | 🅿️ | **README + 발표 PPT** | 오픈소스 활용 과정 명시 |
@@ -184,7 +184,7 @@ LLM의 긴 컨텍스트(1M tokens)에 통째로 넣어 처리합니다.
 | 계층 | 기술 | 사유 |
 |------|------|------|
 | **Frontend** | Streamlit | 빠른 프로토타이핑, Python 기반 |
-| **LLM** | DeepSeek V4 Flash (via Jiminbox API) | 1M context, 초저비용 |
+| **LLM** | DeepSeek V4 Flash (via Custom LLM Endpoint) | 1M context, 초저비용 |
 | **지식 저장** | KB.md (단일 마크다운 파일) | RAG 불필요, 단순함 |
 | **크론** | APScheduler (Python) | 동적 작업 스케줄링 |
 | **스킬 시스템** | Python 함수 + KB.md 정의 | 마이크로스킬 = 함수, 빅스킬 = 조합 |

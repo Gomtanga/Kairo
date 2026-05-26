@@ -12,23 +12,23 @@ with st.sidebar:
 
 env = read_env()
 
-current_key = env.get("JIMINBOX_API_KEY", "")
-current_url = env.get("JIMINBOX_BASE_URL", "https://api.jiminbox.com/v1")
+current_key = env.get("LLM_API_KEY", "")
+current_url = env.get("LLM_BASE_URL", "")
 current_model = env.get("LLM_MODEL", "deepseek-v4-flash")
 
 st.subheader("🔑 API 설정")
 
 with st.form("env_form"):
     new_key = st.text_input(
-        "API 키 (JIMINBOX_API_KEY)",
+        "API 키 (LLM_API_KEY)",
         value=current_key,
         type="password",
-        help="Jiminbox API 키를 입력하세요.",
+        help="LLM API 키를 입력하세요.",
     )
     new_url = st.text_input(
-        "엔드포인트 (JIMINBOX_BASE_URL)",
+        "엔드포인트 (LLM_BASE_URL)",
         value=current_url,
-        help="API 엔드포인트 URL (예: https://api.jiminbox.com/v1)",
+        help="커스텀 LLM 엔드포인트 URL을 입력하세요.",
     )
     new_model = st.text_input(
         "모델 (LLM_MODEL)",
@@ -43,8 +43,8 @@ with st.form("env_form"):
     submitted = st.form_submit_button("💾 저장")
     if submitted:
         save_env({
-            "JIMINBOX_API_KEY": new_key,
-            "JIMINBOX_BASE_URL": new_url,
+            "LLM_API_KEY": new_key,
+            "LLM_BASE_URL": new_url,
             "LLM_MODEL": new_model,
         })
         st.success("설정이 저장되었습니다.")

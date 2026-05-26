@@ -1,8 +1,8 @@
-# [KAIRO] LLM Client - DeepSeek V4 Flash via Jiminbox API
+# [KAIRO] LLM Client - LLM API Client
 import requests
 from core.config import (
-    JIMINBOX_API_KEY,
-    JIMINBOX_BASE_URL,
+    LLM_API_KEY,
+    LLM_BASE_URL,
     LLM_MODEL,
     LLM_TIMEOUT,
     LLM_MAX_RETRIES,
@@ -15,8 +15,8 @@ from core.config import (
 class LLMClient:
 
     def __init__(self):
-        self.api_key = JIMINBOX_API_KEY
-        self.base_url = JIMINBOX_BASE_URL
+        self.api_key = LLM_API_KEY
+        self.base_url = LLM_BASE_URL
         self.model = LLM_MODEL
 
     def chat(

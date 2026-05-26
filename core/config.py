@@ -5,8 +5,8 @@ import toml
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env.toml")
 
 # API Configuration
-JIMINBOX_API_KEY = ""
-JIMINBOX_BASE_URL = "https://api.jiminbox.com/v1"
+LLM_API_KEY = ""
+LLM_BASE_URL = ""
 LLM_MODEL = "deepseek-v4-flash"
 
 
@@ -18,10 +18,10 @@ def _load_toml() -> dict:
 
 
 def reload_env():
-    global JIMINBOX_API_KEY, JIMINBOX_BASE_URL, LLM_MODEL
+    global LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
     env = _load_toml()
-    JIMINBOX_API_KEY = env.get("JIMINBOX_API_KEY", "")
-    JIMINBOX_BASE_URL = env.get("JIMINBOX_BASE_URL", "https://api.jiminbox.com/v1")
+    LLM_API_KEY = env.get("LLM_API_KEY", "")
+    LLM_BASE_URL = env.get("LLM_BASE_URL", "")
     LLM_MODEL = env.get("LLM_MODEL", "deepseek-v4-flash")
 
 

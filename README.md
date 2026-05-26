@@ -26,7 +26,7 @@ KB.md를 통째로 넣어 처리하는 독창적인 접근법을 사용합니다
         Kairo Agent (LLM)
         DeepSeek V4 Flash
          1M context window
-         Jiminbox API
+         Custom LLM Endpoint
                 ↓
         KB.md (Knowledge Base)
         - User Profile
@@ -93,7 +93,7 @@ cd Kairo
 pip install streamlit apscheduler python-dotenv requests
 
 # 환경변수 설정
-echo "JIMINBOX_API_KEY=your_key" > .env
+echo "LLM_API_KEY=your_key" > .env
 
 # 실행 (MVP 완성 시)
 streamlit run app.py
