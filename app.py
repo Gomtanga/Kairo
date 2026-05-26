@@ -1,7 +1,11 @@
 # [KAIRO]
+import json
+import os
 import re
 import streamlit as st
 from core import KBManager, LLMClient, LevelSystem, SkillSystem
+
+CHAT_HISTORY_PATH = os.path.join(os.path.dirname(__file__), "chat_history.json")
 
 
 def extract_kb_updates(response: str) -> tuple[str, list[str]]:
@@ -11,13 +15,25 @@ def extract_kb_updates(response: str) -> tuple[str, list[str]]:
         display = re.sub(r"```kb-update\n.*?```\n?", "", response, flags=re.DOTALL).strip()
     return display, updates
 
+
+def load_chat_history() -> list[dict]:
+    if os.path.exists(CHAT_HISTORY_PATH):
+        with open(CHAT_HISTORY_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+
+def save_chat_history(messages: list[dict]):
+    with open(CHAT_HISTORY_PATH, "w", encoding="utf-8") as f:
+        json.dump(messages, f, ensure_ascii=False, indent=2)
+
 st.set_page_config(page_title="Kairo", page_icon="🧠", layout="wide")
 
 kb = KBManager()
 llm = LLMClient()
 
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state.messages = load_chat_history()
 if "interaction_count" not in st.session_state:
     count = kb._parse_interaction_count(kb.read())
     st.session_state.interaction_count = count
@@ -57,13 +73,16 @@ if user_input:
     with st.chat_message("user"):
         st.markdown(user_input)
     st.session_state.messages.append({"role": "user", "content": user_input})
+    save_chat_history(st.session_state.messages)
 
-    chat_messages = [
-        {"role": m["role"], "content": m["content"]}
-        for m in st.session_state.messages
-    ]
-    kb_content = kb.read()
-    raw_response = llm.chat(chat_messages, kb_content=kb_content)
+    with st.chat_message("assistant"):
+        with st.spinner("💭 생성 중..."):
+            chat_messages = [
+                {"role": m["role"], "content": m["content"]}
+                for m in st.session_state.messages
+            ]
+            kb_content = kb.read()
+            raw_response = llm.chat(chat_messages, kb_content=kb_content)
 
     display_response, updates = extract_kb_updates(raw_response)
 
@@ -73,6 +92,7 @@ if user_input:
     with st.chat_message("assistant"):
         st.markdown(display_response)
     st.session_state.messages.append({"role": "assistant", "content": display_response})
+    save_chat_history(st.session_state.messages)
 
     if updates:
         current_kb = kb.read()
