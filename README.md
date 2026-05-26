@@ -62,7 +62,7 @@ KB.md를 통째로 넣어 처리하는 독창적인 접근법을 사용합니다
 ## 기술 스택
 
 - **Frontend**: Streamlit
-- **LLM**: DeepSeek V4 Flash (Jiminbox API)
+- **LLM**: DeepSeek V4 Flash (Custom endpoint URL)
 - **지식 저장**: KB.md (단일 마크다운 파일)
 - **스케줄링**: APScheduler
 - **배포**: Streamlit Community Cloud
@@ -103,11 +103,11 @@ streamlit run app.py
 
 ## 팀
 
-| 역할           | 이름   |
-| ------------ | ---- |
-| 팀장 / 에이전트 엔진 | 박건영  |
-| 프론트엔드 / 문서화  | 박건영  |
-| 데이터 / 발표     | (팀원) |
+| 역할           | 이름              |
+| ------------ | --------------- |
+| 팀장 / 에이전트 엔진 | Park Geon Young |
+| 프론트엔드 / 문서화  | Park Geon Young |
+| 데이터 / 발표     | (팀원)            |
 
 ---
 
