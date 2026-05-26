@@ -392,15 +392,23 @@ if user_input:
         skills_section = SkillStore.to_kb_section(SkillStore.load())
         full_context = kb_content + "\n\n" + skills_section if skills_section else kb_content
 
-        # [KAIRO] try streaming, fallback to sync
+        # [KAIRO] buffer stream, then display clean text
         streamed_text = ""
         try:
             stream_gen = llm.chat_stream(chat_messages, kb_content=full_context)
-            streamed_text = st.write_stream(stream_gen)
+            with st.spinner("💭 생각 중..."):
+                for chunk in stream_gen:
+                    streamed_text += chunk
+            clean_display = re.sub(r"---TOOL---[\s\S]*?(?:---TOOL---|$)", "", streamed_text).strip()
+            clean_display = re.sub(r"```kb-(?:update|graph|cron)\n.*?```\n?", "", clean_display, flags=re.DOTALL).strip()
+            if clean_display:
+                st.markdown(clean_display)
         except Exception:
             with st.spinner("💭 생성 중..."):
                 streamed_text = llm.chat(chat_messages, kb_content=full_context)
-            st.markdown(streamed_text)
+            clean_display = re.sub(r"---TOOL---[\s\S]*?(?:---TOOL---|$)", "", streamed_text).strip()
+            if clean_display:
+                st.markdown(clean_display)
         raw_response = streamed_text
 
     # [KAIRO] TOOL execution loop
@@ -483,3 +491,5 @@ if user_input:
     if new_level > st.session_state.agent_level:
         st.session_state.agent_level = new_level
         st.balloons()
+
+    st.rerun()
