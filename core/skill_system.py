@@ -1,7 +1,11 @@
 # [KAIRO] Skill System - fuzzy Korean skill matching with kiwipiepy + rapidfuzz
+import json
+import os
 import re
 from typing import Optional
 from rapidfuzz import fuzz as _fuzz
+
+from core.config import SKILLS_PATH
 
 _kiwi = None
 
@@ -167,3 +171,86 @@ class SkillSystem:
                 "description": "코딩 문제 해결 도움",
             },
         ]
+
+
+class SkillStore:
+
+    @staticmethod
+    def load(path: str = SKILLS_PATH) -> list[dict]:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        defaults = SkillSystem.get_default_skills()
+        SkillStore.save(defaults, path)
+        return defaults
+
+    @staticmethod
+    def save(skills: list[dict], path: str = SKILLS_PATH) -> None:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(skills, f, ensure_ascii=False, indent=2)
+
+    @staticmethod
+    def add(name: str, trigger: str, action: str, description: str, path: str = SKILLS_PATH) -> list[dict]:
+        skills = SkillStore.load(path)
+        skills.append({"name": name, "trigger": trigger, "action": action, "description": description})
+        SkillStore.save(skills, path)
+        return skills
+
+    @staticmethod
+    def remove(skill_name: str, path: str = SKILLS_PATH) -> list[dict]:
+        skills = SkillStore.load(path)
+        skills = [s for s in skills if s["name"] != skill_name]
+        SkillStore.save(skills, path)
+        return skills
+
+    @staticmethod
+    def update(old_name: str, name: str, trigger: str, action: str, description: str, path: str = SKILLS_PATH) -> list[dict]:
+        skills = SkillStore.load(path)
+        for s in skills:
+            if s["name"] == old_name:
+                s["name"] = name
+                s["trigger"] = trigger
+                s["action"] = action
+                s["description"] = description
+                break
+        SkillStore.save(skills, path)
+        return skills
+
+    @staticmethod
+    def to_kb_section(skills: list[dict]) -> str:
+        if not skills:
+            return ""
+        lines = ["## 🔧 Skills"]
+        for s in skills:
+            lines.append(f"### skill: {s['name']}")
+            lines.append(f"- trigger: {s['trigger']}")
+            lines.append(f"- action: {s['action']}")
+            lines.append(f"- description: {s['description']}")
+            lines.append("")
+        return "\n".join(lines)
+
+    @staticmethod
+    def migrate_from_kb(kb_content: str, path: str = SKILLS_PATH) -> str:
+        skills = SkillSystem.parse_skills(kb_content)
+        if skills:
+            existing = SkillStore.load(path)
+            existing_names = {s["name"] for s in existing}
+            for s in skills:
+                if s["name"] not in existing_names:
+                    existing.append(s)
+            SkillStore.save(existing, path)
+        lines = kb_content.split("\n")
+        result = []
+        skip = False
+        for line in lines:
+            if line.strip() == "## 🔧 Skills":
+                skip = True
+                continue
+            if skip and (line.startswith("## ") or line.strip() == ""):
+                if line.startswith("## "):
+                    skip = False
+                    result.append(line)
+                continue
+            if not skip:
+                result.append(line)
+        return "\n".join(result)

@@ -3,7 +3,7 @@ import json
 import os
 import re
 import streamlit as st
-from core import KBManager, LLMClient, LevelSystem, SkillSystem
+from core import KBManager, LLMClient, LevelSystem, SkillSystem, SkillStore
 
 CHAT_HISTORY_PATH = os.path.join(os.path.dirname(__file__), "chat_history.json")
 
@@ -82,7 +82,12 @@ if user_input:
                 for m in st.session_state.messages
             ]
             kb_content = kb.read()
-            raw_response = llm.chat(chat_messages, kb_content=kb_content)
+            if "## 🔧 Skills" in kb_content:
+                kb_content = SkillStore.migrate_from_kb(kb_content)
+                kb.write(kb_content)
+            skills_section = SkillStore.to_kb_section(SkillStore.load())
+            full_context = kb_content + "\n\n" + skills_section if skills_section else kb_content
+            raw_response = llm.chat(chat_messages, kb_content=full_context)
 
     display_response, updates = extract_kb_updates(raw_response)
 

@@ -42,6 +42,9 @@ KB_PATH = os.getenv("KB_PATH", os.path.join(os.path.dirname(os.path.dirname(__fi
 KB_BACKUP_PATH = KB_PATH + ".bak"
 KB_MAX_TOKEN_RATIO = 0.80  # 80% threshold for compression
 
+# Skills Configuration
+SKILLS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "skills.json")
+
 # Autonomy Level Thresholds
 LEVEL_THRESHOLDS = {
     0: {"interactions": 0, "crons_accepted": 0, "consecutive_days": 0},

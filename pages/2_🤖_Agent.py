@@ -1,7 +1,7 @@
 # [KAIRO]
 import streamlit as st
 
-from core import KBManager, SkillSystem, LevelSystem
+from core import KBManager, SkillSystem, SkillStore, LevelSystem
 
 st.set_page_config(page_title="에이전트 관리 - Kairo", page_icon="🤖", layout="wide")
 
@@ -25,7 +25,12 @@ if st.session_state.success_message:
 
 kb_manager = KBManager()
 kb_content = kb_manager.read()
-skills = SkillSystem.parse_skills(kb_content)
+
+if "## 🔧 Skills" in kb_content:
+    kb_content = SkillStore.migrate_from_kb(kb_content)
+    kb_manager.write(kb_content)
+
+skills = SkillStore.load()
 
 st.header("📋 스킬 목록")
 
@@ -53,8 +58,7 @@ else:
             c1, c2 = st.columns(2)
             with c1:
                 if st.button("예, 삭제합니다", key=f"confirm_{skill['name']}"):
-                    new_content = SkillSystem.remove_skill(kb_content, skill["name"])
-                    kb_manager.write(new_content)
+                    SkillStore.remove(skill["name"])
                     st.session_state.success_message = f"'{skill['name']}' 스킬이 삭제되었습니다."
                     st.session_state.pop(del_key, None)
                     st.rerun()
@@ -112,10 +116,7 @@ with st.form("add_skill_form", clear_on_submit=True):
             st.error("이름, 트리거, 액션은 필수 입력 항목입니다.")
         else:
             if editing_skill:
-                new_content = SkillSystem.update_skill(
-                    kb_content, editing_skill["name"], name, trigger, action, description
-                )
-                kb_manager.write(new_content)
+                SkillStore.update(editing_skill["name"], name, trigger, action, description)
                 st.session_state.success_message = f"'{name}' 스킬이 수정되었습니다."
                 st.session_state.edit_skill_name = None
                 st.session_state.last_edit_skill_name = None
@@ -123,8 +124,7 @@ with st.form("add_skill_form", clear_on_submit=True):
                 if any(s["name"] == name for s in skills):
                     st.error(f"'{name}' 이름의 스킬이 이미 존재합니다.")
                 else:
-                    new_content = SkillSystem.add_skill(kb_content, name, trigger, action, description)
-                    kb_manager.write(new_content)
+                    SkillStore.add(name, trigger, action, description)
                     st.session_state.success_message = f"'{name}' 스킬이 추가되었습니다."
             st.rerun()
 
