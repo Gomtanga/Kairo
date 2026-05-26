@@ -89,6 +89,61 @@ class LLMClient:
 
         return "❌ 최대 재시도 횟수를 초과했습니다."
 
+    # [KAIRO] streaming chat
+    def chat_stream(self, messages: list[dict], kb_content: str = "", temperature: float = None, max_tokens: int = None):
+        if not self.api_key:
+            yield "⚠️ API 키가 설정되지 않았습니다. .env.toml 파일을 확인해주세요."
+            return
+
+        system_prompt = self._build_system_prompt(kb_content)
+        full_messages = [{"role": "system", "content": system_prompt}] + messages
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "model": self.model,
+            "messages": full_messages,
+            "temperature": temperature or LLM_TEMPERATURE,
+            "max_tokens": max_tokens or LLM_MAX_TOKENS,
+            "stream": True,
+        }
+
+        try:
+            response = requests.post(
+                f"{self.base_url}/chat/completions",
+                json=payload,
+                headers=headers,
+                timeout=LLM_TIMEOUT,
+                stream=True,
+            )
+            response.raise_for_status()
+            for line in response.iter_lines():
+                if not line:
+                    continue
+                decoded = line.decode("utf-8")
+                if not decoded.startswith("data: "):
+                    continue
+                data = decoded[6:]
+                if data.strip() == "[DONE]":
+                    break
+                import json as _json
+                try:
+                    chunk = _json.loads(data)
+                    delta = chunk["choices"][0].get("delta", {})
+                    content = delta.get("content", "")
+                    if content:
+                        yield content
+                except (_json.JSONDecodeError, KeyError, IndexError):
+                    continue
+        except requests.exceptions.Timeout:
+            yield "⏰ 응답 시간이 초과되었습니다."
+        except requests.exceptions.ConnectionError:
+            yield "🔌 서비스에 연결할 수 없습니다."
+        except Exception as e:
+            yield f"❌ 스트리밍 오류: {e}"
+
     def _build_system_prompt(self, kb_content: str) -> str:
         prompt = (
             "당신은 Kairo(카이로)입니다 — 사용자와 함께 성장하는 개인 지식 에이전트입니다.\n"
