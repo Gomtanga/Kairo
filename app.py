@@ -3,7 +3,7 @@ import json
 import os
 import re
 import streamlit as st
-from core import KBManager, LLMClient, LevelSystem, SkillSystem, SkillStore, KnowledgeGraph
+from core import KBManager, LLMClient, LevelSystem, SkillSystem, SkillStore, KnowledgeGraph, ToolSystem
 
 CHAT_HISTORY_PATH = os.path.join(os.path.dirname(__file__), "chat_history.json")
 
@@ -42,6 +42,51 @@ def extract_cron_suggestions(response: str) -> list[dict]:
         if "name" in cron and "cron" in cron:
             suggestions.append(cron)
     return suggestions
+
+
+# [KAIRO] extract tool commands from ---TOOL--- markers
+def extract_tool_commands(response: str) -> list[str]:
+    commands = re.findall(r"---TOOL---\s*\ncommand:\s*(.+?)\s*\n(?:---TOOL---)?", response)
+    seen = []
+    for cmd in commands:
+        cmd = cmd.strip()
+        if cmd and cmd not in seen:
+            seen.append(cmd)
+    return seen
+
+
+def execute_tool_loop(llm_client, chat_messages, kb_content, raw_response, max_rounds=3):
+    all_tool_results = []
+    current_response = raw_response
+    executed_commands = set()
+
+    for round_num in range(max_rounds):
+        commands = extract_tool_commands(current_response)
+        new_commands = [c for c in commands if c not in executed_commands]
+        if not new_commands:
+            break
+
+        tool_outputs = []
+        for cmd in new_commands:
+            executed_commands.add(cmd)
+            result = ToolSystem.run_safe_command(cmd)
+            all_tool_results.append({"command": cmd, **result})
+            if result["success"]:
+                tool_outputs.append(f"$ {cmd}\n{result['output']}")
+            else:
+                tool_outputs.append(f"$ {cmd}\nERROR: {result['error']}")
+
+        if not tool_outputs:
+            break
+
+        tool_context = "\n".join(tool_outputs)
+        followup_messages = chat_messages + [
+            {"role": "assistant", "content": current_response},
+            {"role": "user", "content": f"[TOOL RESULTS]\n{tool_context}\n\n위 도구 실행 결과를 반영하여 답변을 완성해주세요. 더 이상 ---TOOL--- 마커를 사용하지 마세요."},
+        ]
+        current_response = llm_client.chat(followup_messages, kb_content=kb_content)
+
+    return current_response, all_tool_results
 
 
 def load_chat_history() -> list[dict]:
@@ -117,14 +162,30 @@ if user_input:
             full_context = kb_content + "\n\n" + skills_section if skills_section else kb_content
             raw_response = llm.chat(chat_messages, kb_content=full_context)
 
-    display_response, updates = extract_kb_updates(raw_response)
-    graph_edges = extract_graph_edges(raw_response)
-    cron_suggestions = extract_cron_suggestions(raw_response)
+    # [KAIRO] TOOL execution loop
+    tool_commands = extract_tool_commands(raw_response)
+    if tool_commands:
+        final_response, tool_results = execute_tool_loop(
+            llm, chat_messages, full_context, raw_response
+        )
+        if tool_results:
+            for tr in tool_results:
+                icon = "✅" if tr["success"] else "❌"
+                status = tr.get("output", "") or tr.get("error", "")
+                status_preview = status[:200] + ("..." if len(status) > 200 else "")
+                st.info(f"🛠 `{tr['command']}` {icon}\n```\n{status_preview}\n```")
+    else:
+        final_response = raw_response
+
+    display_response, updates = extract_kb_updates(final_response)
+    graph_edges = extract_graph_edges(final_response)
+    cron_suggestions = extract_cron_suggestions(final_response)
     if updates or graph_edges or cron_suggestions:
         display_response = re.sub(r"```kb-(?:update|graph|cron)\n.*?```\n?", "", display_response, flags=re.DOTALL).strip()
+    display_response = re.sub(r"---TOOL---\s*\ncommand:.*?\n(?:---TOOL---\s*\n?)?", "", display_response, flags=re.DOTALL).strip()
 
     if not display_response.strip():
-        display_response = raw_response
+        display_response = final_response
 
     with st.chat_message("assistant"):
         st.markdown(display_response)

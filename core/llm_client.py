@@ -121,6 +121,15 @@ class LLMClient:
             "```kb-cron\n"
             "name: 작업이름\ncron: */30 * * * *\naction: 실행할 작업 설명\ndescription: 왜 이 크론이 유용한지\n```\n"
             "- cron 표현식은 5필드(분 시 일 월 요일) 형식을 사용하세요.\n"
+            "\n터미널 도구 규칙:\n"
+            "- 시스템 정보, 파일 목록, 날짜 등이 필요할 때 터미널 명령어를 실행할 수 있습니다.\n"
+            "- 응답에 다음 형식으로 명령어를 포함하세요:\n"
+            "---TOOL---\n"
+            "command: ls pages/\n"
+            "---TOOL---\n"
+            "- 사용 가능한 명령어: date, ls, cat, echo, git status, git diff, git log, pwd, wc, head, tail, whoami, uname, df\n"
+            "- 위험한 명령어(rm, sudo 등)는 실행할 수 없습니다.\n"
+            "- 한 응답에 여러 명령어를 실행할 수 있습니다.\n"
         )
 
         if kb_content:
