@@ -89,6 +89,54 @@ def execute_tool_loop(llm_client, chat_messages, kb_content, raw_response, max_r
     return current_response, all_tool_results
 
 
+# [KAIRO] extract and render dynamic forms
+def extract_forms(response: str) -> list[dict]:
+    blocks = re.findall(r"---FORM---\s*\n(.*?)\n---FORM_END---", response, re.DOTALL)
+    forms = []
+    for block in blocks:
+        form = {"title": "Form", "fields": []}
+        for line in block.strip().split("\n"):
+            line = line.strip()
+            if line.startswith("title:"):
+                form["title"] = line[6:].strip()
+            elif line.startswith("field:"):
+                parts = line[6:].strip().split("|")
+                if len(parts) >= 2:
+                    field = {
+                        "name": parts[0].strip(),
+                        "type": parts[1].strip(),
+                        "hint": parts[2].strip() if len(parts) > 2 else "",
+                    }
+                    form["fields"].append(field)
+        if form["fields"]:
+            forms.append(form)
+    return forms
+
+
+def render_forms(forms: list[dict]) -> dict:
+    results = {}
+    for form in forms:
+        with st.expander(f"📝 {form['title']}", expanded=True):
+            field_data = {}
+            for field in form["fields"]:
+                ftype = field["type"]
+                fname = field["name"]
+                fhint = field["hint"]
+                if ftype == "number":
+                    field_data[fname] = st.number_input(fname, help=fhint)
+                elif ftype == "textarea":
+                    field_data[fname] = st.text_area(fname, help=fhint)
+                elif ftype == "select":
+                    options = [o.strip() for o in fhint.split(",")]
+                    field_data[fname] = st.selectbox(fname, options)
+                else:
+                    field_data[fname] = st.text_input(fname, help=fhint)
+            if st.button(f"제출: {form['title']}", key=f"form_{form['title']}"):
+                results.update(field_data)
+                st.toast(f"✅ {form['title']} 제출됨!")
+    return results
+
+
 def load_chat_history() -> list[dict]:
     if os.path.exists(CHAT_HISTORY_PATH):
         with open(CHAT_HISTORY_PATH, "r", encoding="utf-8") as f:
@@ -205,12 +253,17 @@ if user_input:
     display_response, updates = extract_kb_updates(final_response)
     graph_edges = extract_graph_edges(final_response)
     cron_suggestions = extract_cron_suggestions(final_response)
+    dynamic_forms = extract_forms(final_response)
     if updates or graph_edges or cron_suggestions:
         display_response = re.sub(r"```kb-(?:update|graph|cron)\n.*?```\n?", "", display_response, flags=re.DOTALL).strip()
     display_response = re.sub(r"---TOOL---\s*\ncommand:.*?\n(?:---TOOL---\s*\n?)?", "", display_response, flags=re.DOTALL).strip()
+    display_response = re.sub(r"---FORM---\s*\n.*?\n---FORM_END---", "", display_response, flags=re.DOTALL).strip()
 
     if not display_response.strip():
         display_response = final_response
+
+    if dynamic_forms:
+        render_forms(dynamic_forms)
 
     st.session_state.messages.append({"role": "assistant", "content": display_response if display_response.strip() else final_response})
     save_chat_history(st.session_state.messages)
