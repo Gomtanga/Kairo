@@ -16,22 +16,13 @@ if "last_edit_skill_name" not in st.session_state:
 if "success_message" not in st.session_state:
     st.session_state.success_message = None
 
-if "reset_form" not in st.session_state:
-    st.session_state.reset_form = False
-
-if st.session_state.reset_form:
-    for key in ("skill_name", "skill_trigger", "skill_action", "skill_description"):
-        st.session_state.pop(key, None)
-    st.session_state.reset_form = False
-    st.rerun()
+if st.session_state.success_message:
+    st.success(st.session_state.success_message)
+    st.session_state.success_message = None
 
 kb_manager = KBManager()
 kb_content = kb_manager.read()
 skills = SkillSystem.parse_skills(kb_content)
-
-if st.session_state.success_message:
-    st.success(st.session_state.success_message)
-    st.session_state.success_message = None
 
 st.header("📋 스킬 목록")
 
@@ -65,18 +56,11 @@ if editing_skill_name:
 if editing_skill_name and editing_skill is None:
     st.session_state.edit_skill_name = None
     st.session_state.last_edit_skill_name = None
-    st.session_state.reset_form = True
     st.rerun()
 
 if st.session_state.get("last_edit_skill_name") != editing_skill_name:
     st.session_state.last_edit_skill_name = editing_skill_name
-    if editing_skill:
-        st.session_state.skill_name = editing_skill["name"]
-        st.session_state.skill_trigger = editing_skill["trigger"]
-        st.session_state.skill_action = editing_skill["action"]
-        st.session_state.skill_description = editing_skill["description"]
-    else:
-        st.session_state.reset_form = True
+    if not editing_skill:
         st.rerun()
 
 if editing_skill:
@@ -84,28 +68,24 @@ if editing_skill:
 else:
     st.header("➕ 새 스킬 추가")
 
-with st.form("add_skill_form"):
+with st.form("add_skill_form", clear_on_submit=True):
     name = st.text_input(
         "스킬 이름",
         value=editing_skill["name"] if editing_skill else "",
-        key="skill_name",
     )
     trigger = st.text_input(
         "트리거 키워드",
         value=editing_skill["trigger"] if editing_skill else "",
         placeholder='"검색", "찾아봐", "search"',
-        key="skill_trigger",
     )
     action = st.text_input(
         "액션",
         value=editing_skill["action"] if editing_skill else "",
         placeholder="web_search(query)",
-        key="skill_action",
     )
     description = st.text_input(
         "설명",
         value=editing_skill["description"] if editing_skill else "",
-        key="skill_description",
     )
 
     submitted = st.form_submit_button("💾 저장")
@@ -122,7 +102,6 @@ with st.form("add_skill_form"):
                 st.session_state.success_message = f"'{name}' 스킬이 수정되었습니다."
                 st.session_state.edit_skill_name = None
                 st.session_state.last_edit_skill_name = None
-                st.session_state.reset_form = True
             else:
                 if any(s["name"] == name for s in skills):
                     st.error(f"'{name}' 이름의 스킬이 이미 존재합니다.")
@@ -130,14 +109,12 @@ with st.form("add_skill_form"):
                     new_content = SkillSystem.add_skill(kb_content, name, trigger, action, description)
                     kb_manager.write(new_content)
                     st.session_state.success_message = f"'{name}' 스킬이 추가되었습니다."
-                    st.session_state.reset_form = True
             st.rerun()
 
 if editing_skill:
     if st.button("❌ 수정 취소"):
         st.session_state.edit_skill_name = None
         st.session_state.last_edit_skill_name = None
-        st.session_state.reset_form = True
         st.rerun()
 
 st.divider()

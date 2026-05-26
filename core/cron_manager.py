@@ -137,25 +137,23 @@ class CronManager:
         return False
 
     def pause_cron(self, job_id: str) -> bool:
-        """Pause a cron job."""
         if job_id in self.jobs:
             try:
                 self.scheduler.pause_job(job_id)
-                self.jobs[job_id]["status"] = "paused"
-                return True
             except Exception:
-                return False
+                pass
+            self.jobs[job_id]["status"] = "paused"
+            return True
         return False
 
     def resume_cron(self, job_id: str) -> bool:
-        """Resume a paused cron job."""
         if job_id in self.jobs:
             try:
                 self.scheduler.resume_job(job_id)
-                self.jobs[job_id]["status"] = "active"
-                return True
             except Exception:
-                return False
+                pass
+            self.jobs[job_id]["status"] = "active"
+            return True
         return False
 
     def list_crons(self) -> list[dict]:
