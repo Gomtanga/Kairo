@@ -7,6 +7,7 @@ from core.level_system import LevelSystem
 from core.cron_manager import CronManager
 from core.knowledge_graph import KnowledgeGraph
 from core.tool_system import ToolSystem
+from core.session_manager import SessionManager
 
 __all__ = [
     "KBManager",
@@ -17,4 +18,5 @@ __all__ = [
     "CronManager",
     "KnowledgeGraph",
     "ToolSystem",
+    "SessionManager",
 ]
