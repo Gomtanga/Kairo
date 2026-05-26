@@ -77,6 +77,21 @@ class CronManager:
         if task_description:
             result["task_description"] = task_description
 
+        try:
+            from core.llm_client import LLMClient
+            llm = LLMClient()
+            prompt = (
+                f"다음 예약 작업을 지금 실행합니다. 작업에 맞는 결과를 생성해주세요.\n\n"
+                f"작업 이름: {task_name}\n"
+                f"작업 설명: {task_description}\n"
+                f"실행 시간: {now}\n\n"
+                f"위 작업에 대한 결과를 간결하게 제공해주세요."
+            )
+            llm_response = llm.chat([{"role": "user", "content": prompt}])
+            result["llm_response"] = llm_response
+        except Exception as e:
+            result["llm_response"] = f"LLM 실행 오류: {e}"
+
         self.results[job_id] = result
         self._save_results()
         return result
