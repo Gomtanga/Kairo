@@ -1,4 +1,5 @@
 # [KAIRO] Autonomy Level System
+import streamlit as st
 from core.config import LEVEL_THRESHOLDS
 
 
@@ -80,3 +81,18 @@ class LevelSystem:
             "progress": overall,
             "message": " | ".join(remaining) if remaining else "레벨업 임박!",
         }
+
+    @staticmethod
+    def render_sidebar():
+        current_level = st.session_state.get("agent_level", 0)
+        info = LevelSystem.get_level_info(current_level)
+        st.header(f"🎮 Level {current_level} — {info['name']}")
+        progress = LevelSystem.get_level_progress(
+            st.session_state.get("interaction_count", 0),
+            st.session_state.get("crons_accepted", 0),
+            st.session_state.get("consecutive_days", 1),
+            current_level,
+        )
+        st.progress(progress["progress"])
+        st.caption(progress["message"])
+        st.markdown(f"**상호작용:** {st.session_state.get('interaction_count', 0)}회")
