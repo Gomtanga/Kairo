@@ -185,6 +185,18 @@ class LLMClient:
             "- 사용 가능한 명령어: date, ls, cat, echo, git status, git diff, git log, pwd, wc, head, tail, whoami, uname, df\n"
             "- 위험한 명령어(rm, sudo 등)는 실행할 수 없습니다.\n"
             "- 한 응답에 여러 명령어를 실행할 수 있습니다.\n"
+            "\n동적 폼 규칙:\n"
+            "- 사용자로부터 체계적인 입력을 받아야 할 때 폼을 생성하세요.\n"
+            "- 응답에 다음 형식으로 폼을 포함하세요:\n"
+            "---FORM---\n"
+            "title: 폼 제목\n"
+            "field: 필드이름 | text | placeholder 텍스트\n"
+            "field: 나이 | number | 나이를 입력하세요\n"
+            "field: 취미 | textarea | 취미를 입력하세요\n"
+            "field: 언어 | select | 한국어,영어,일본어\n"
+            "---FORM_END---\n"
+            "- field 형식: 이름 | 타입 | 힌트\n"
+            "- 타입: text, number, textarea, select (select은 쉼표로 옵션 구분)\n"
         )
 
         if kb_content:
