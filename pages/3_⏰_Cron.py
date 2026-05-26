@@ -6,7 +6,7 @@ st.set_page_config(page_title="크론 관리 - Kairo", page_icon="⏰", layout="
 st.title("⏰ 크론 잡 관리")
 
 with st.sidebar:
-    LevelSystem.render_sidebar()
+    LevelSystem.render_sidebar("Cron")
 
 if "cron_manager" not in st.session_state:
     st.session_state.cron_manager = CronManager()

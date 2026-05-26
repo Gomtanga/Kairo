@@ -8,7 +8,7 @@ st.set_page_config(page_title="에이전트 관리 - Kairo", page_icon="🤖", l
 st.title("🤖 에이전트 관리")
 
 with st.sidebar:
-    LevelSystem.render_sidebar()
+    LevelSystem.render_sidebar("Agent")
 
 if "edit_skill_name" not in st.session_state:
     st.session_state.edit_skill_name = None

@@ -8,7 +8,7 @@ st.set_page_config(page_title="설정 - Kairo", page_icon="⚙️", layout="wide
 st.title("⚙️ 설정")
 
 with st.sidebar:
-    LevelSystem.render_sidebar()
+    LevelSystem.render_sidebar("Settings")
 
 env = read_env()
 
