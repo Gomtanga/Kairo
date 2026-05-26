@@ -99,7 +99,7 @@ st.divider()
 
 st.subheader("➕ 새 크론 잡 등록")
 
-with st.form("add_cron_form"):
+with st.form("add_cron_form", clear_on_submit=True):
     job_id = st.text_input("잡 ID", placeholder="daily_morning_report")
     cron_expr = st.text_input(
         "크론 표현식",
