@@ -137,6 +137,86 @@ def render_forms(forms: list[dict]) -> dict:
     return results
 
 
+# [KAIRO] dynamic BUTTON/TABLE/CHART
+def extract_buttons(response: str) -> list[dict]:
+    buttons = re.findall(r"---BUTTON---\s*\nlabel:\s*(.+?)\s*\naction:\s*(.+?)\s*\n(?:---BUTTON---)?", response)
+    return [{"label": b[0].strip(), "action": b[1].strip()} for b in buttons]
+
+
+def extract_tables(response: str) -> list[dict]:
+    blocks = re.findall(r"---TABLE---\s*\n(.*?)\n---TABLE_END---", response, re.DOTALL)
+    tables = []
+    for block in blocks:
+        lines = [l.strip() for l in block.strip().split("\n") if l.strip()]
+        if not lines:
+            continue
+        headers = [h.strip() for h in lines[0].split("|")]
+        rows = []
+        for line in lines[1:]:
+            cells = [c.strip() for c in line.split("|")]
+            if len(cells) == len(headers):
+                rows.append(cells)
+        tables.append({"headers": headers, "rows": rows})
+    return tables
+
+
+def extract_charts(response: str) -> list[dict]:
+    blocks = re.findall(r"---CHART---\s*\n(.*?)\n---CHART_END---", response, re.DOTALL)
+    charts = []
+    for block in blocks:
+        chart = {"type": "bar", "title": "Chart", "labels": [], "values": []}
+        for line in block.strip().split("\n"):
+            line = line.strip()
+            if line.startswith("type:"):
+                chart["type"] = line[5:].strip()
+            elif line.startswith("title:"):
+                chart["title"] = line[6:].strip()
+            elif "|" in line and not line.startswith("-"):
+                parts = line.split("|")
+                if len(parts) >= 2:
+                    chart["labels"].append(parts[0].strip())
+                    try:
+                        chart["values"].append(float(parts[1].strip()))
+                    except ValueError:
+                        chart["values"].append(0)
+        if chart["labels"] and chart["values"]:
+            charts.append(chart)
+    return charts
+
+
+def render_dynamic_widgets(response: str):
+    buttons = extract_buttons(response)
+    tables = extract_tables(response)
+    charts = extract_charts(response)
+
+    for table in tables:
+        st.dataframe(
+            data={h: [r[i] for r in table["rows"]] for i, h in enumerate(table["headers"])},
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    for chart in charts:
+        chart_data = {"항목": chart["labels"], "값": chart["values"]}
+        if chart["type"] == "line":
+            st.line_chart(chart_data, x="항목", y="값", use_container_width=True)
+        elif chart["type"] == "pie":
+            import pandas as pd
+            st.pyplot(
+                pd.DataFrame(chart_data).plot(
+                    kind="pie", y="값", labels=chart["labels"], autopct="%1.1f%%", figsize=(6, 4)
+                ).figure
+            )
+        else:
+            st.bar_chart(chart_data, x="항목", y="값", use_container_width=True)
+
+    for btn in buttons:
+        if st.button(f"🔘 {btn['label']}", key=f"btn_{btn['label']}"):
+            st.info(f"실행: {btn['action']}")
+
+    return buttons or tables or charts
+
+
 def load_chat_history() -> list[dict]:
     if os.path.exists(CHAT_HISTORY_PATH):
         with open(CHAT_HISTORY_PATH, "r", encoding="utf-8") as f:
@@ -258,12 +338,16 @@ if user_input:
         display_response = re.sub(r"```kb-(?:update|graph|cron)\n.*?```\n?", "", display_response, flags=re.DOTALL).strip()
     display_response = re.sub(r"---TOOL---\s*\ncommand:.*?\n(?:---TOOL---\s*\n?)?", "", display_response, flags=re.DOTALL).strip()
     display_response = re.sub(r"---FORM---\s*\n.*?\n---FORM_END---", "", display_response, flags=re.DOTALL).strip()
+    display_response = re.sub(r"---BUTTON---\s*\n.*?\n(?:---BUTTON---)?", "", display_response, flags=re.DOTALL).strip()
+    display_response = re.sub(r"---TABLE---\s*\n.*?\n---TABLE_END---", "", display_response, flags=re.DOTALL).strip()
+    display_response = re.sub(r"---CHART---\s*\n.*?\n---CHART_END---", "", display_response, flags=re.DOTALL).strip()
 
     if not display_response.strip():
         display_response = final_response
 
     if dynamic_forms:
         render_forms(dynamic_forms)
+    has_widgets = render_dynamic_widgets(final_response)
 
     st.session_state.messages.append({"role": "assistant", "content": display_response if display_response.strip() else final_response})
     save_chat_history(st.session_state.messages)

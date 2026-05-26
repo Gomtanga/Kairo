@@ -197,6 +197,18 @@ class LLMClient:
             "---FORM_END---\n"
             "- field 형식: 이름 | 타입 | 힌트\n"
             "- 타입: text, number, textarea, select (select은 쉼표로 옵션 구분)\n"
+            "\n동적 위젯 규칙:\n"
+            "- 표가 필요할 때:\n"
+            "---TABLE---\n"
+            "이름|나이|도시\n"
+            "홍길동|25|서울\n"
+            "김영희|30|부산\n"
+            "---TABLE_END---\n"
+            "- 차트가 필요할 때 (type: bar, line, pie):\n"
+            "---CHART---\n"
+            "type: bar\ntitle: 월별 매출\n1월|100\n2월|150\n3월|200\n---CHART_END---\n"
+            "- 버튼이 필요할 때:\n"
+            "---BUTTON---\nlabel: 실행하기\naction: 스크립트 실행\n---BUTTON---\n"
         )
 
         if kb_content:
