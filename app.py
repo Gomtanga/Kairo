@@ -3,7 +3,7 @@ import json
 import os
 import re
 import streamlit as st
-from core import KBManager, LLMClient, LevelSystem, SkillSystem, SkillStore, KnowledgeGraph, ToolSystem
+from core import KBManager, LLMClient, LevelSystem, SkillSystem, SkillStore, KnowledgeGraph, ToolSystem, SessionManager
 
 CHAT_HISTORY_PATH = os.path.join(os.path.dirname(__file__), "chat_history.json")
 
@@ -233,8 +233,18 @@ st.set_page_config(page_title="Kairo", page_icon="🧠", layout="wide")
 kb = KBManager()
 llm = LLMClient()
 
+# [KAIRO] session initialization
+if "current_session_id" not in st.session_state:
+    sessions = SessionManager.list_sessions()
+    if sessions:
+        st.session_state.current_session_id = sessions[0]["id"]
+    else:
+        new_session = SessionManager.create_session()
+        st.session_state.current_session_id = new_session["id"]
+
 if "messages" not in st.session_state:
-    st.session_state.messages = load_chat_history()
+    session = SessionManager.load_session(st.session_state.current_session_id)
+    st.session_state.messages = session["messages"] if session else []
 if "interaction_count" not in st.session_state:
     count = kb._parse_interaction_count(kb.read())
     st.session_state.interaction_count = count
@@ -250,6 +260,49 @@ if "consecutive_days" not in st.session_state:
 
 with st.sidebar:
     st.title("Kairo 카이로")
+
+    # [KAIRO] session list in sidebar
+    st.subheader("💬 대화 세션")
+    sessions = SessionManager.list_sessions()
+    session_options = {f"{s['title']} ({s['message_count']}msg)": s["id"] for s in sessions}
+    if session_options:
+        selected = st.selectbox(
+            "세션 선택",
+            options=list(session_options.keys()),
+            index=0,
+        )
+        if st.button("➕ 새 세션"):
+            new_s = SessionManager.create_session()
+            st.session_state.current_session_id = new_s["id"]
+            st.session_state.messages = []
+            st.rerun()
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🗑 삭제"):
+                SessionManager.delete_session(st.session_state.current_session_id)
+                remaining = SessionManager.list_sessions()
+                if remaining:
+                    st.session_state.current_session_id = remaining[0]["id"]
+                else:
+                    new_s = SessionManager.create_session()
+                    st.session_state.current_session_id = new_s["id"]
+                session = SessionManager.load_session(st.session_state.current_session_id)
+                st.session_state.messages = session["messages"] if session else []
+                st.rerun()
+        with col2:
+            new_title = st.text_input("제목 변경", value="", placeholder="새 제목", label_visibility="collapsed")
+            if new_title and st.button("✏️ 변경"):
+                SessionManager.update_title(st.session_state.current_session_id, new_title)
+                st.rerun()
+
+        selected_id = session_options.get(selected)
+        if selected_id and selected_id != st.session_state.current_session_id:
+            st.session_state.current_session_id = selected_id
+            session = SessionManager.load_session(selected_id)
+            st.session_state.messages = session["messages"] if session else []
+            st.rerun()
+
+    st.divider()
     current_level = st.session_state.agent_level
     level_info = LevelSystem.get_level_info(current_level)
     level_name = level_info["name"]
@@ -288,7 +341,7 @@ if user_input:
     with st.chat_message("user"):
         st.markdown(user_input)
     st.session_state.messages.append({"role": "user", "content": user_input})
-    save_chat_history(st.session_state.messages)
+    SessionManager.add_message(st.session_state.current_session_id, "user", user_input)
 
     with st.chat_message("assistant"):
         chat_messages = [
@@ -350,7 +403,7 @@ if user_input:
     has_widgets = render_dynamic_widgets(final_response)
 
     st.session_state.messages.append({"role": "assistant", "content": display_response if display_response.strip() else final_response})
-    save_chat_history(st.session_state.messages)
+    SessionManager.add_message(st.session_state.current_session_id, "assistant", display_response if display_response.strip() else final_response)
 
     if updates:
         current_kb = kb.read()
