@@ -374,6 +374,12 @@ if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     SessionManager.add_message(st.session_state.current_session_id, "user", user_input)
 
+    # [KAIRO] auto-title on first message
+    current_session = SessionManager.load_session(st.session_state.current_session_id)
+    if current_session and current_session.get("title", "").startswith("새 세션"):
+        auto_title = user_input[:20].strip() + ("..." if len(user_input) > 20 else "")
+        SessionManager.update_title(st.session_state.current_session_id, auto_title)
+
     with st.chat_message("assistant"):
         chat_messages = [
             {"role": m["role"], "content": m["content"]}
