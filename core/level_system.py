@@ -83,7 +83,7 @@ class LevelSystem:
         }
 
     @staticmethod
-    def render_sidebar():
+    def render_sidebar(active_page: str = ""):
         current_level = st.session_state.get("agent_level", 0)
         info = LevelSystem.get_level_info(current_level)
         st.header(f"🎮 Level {current_level} — {info['name']}")
@@ -96,3 +96,15 @@ class LevelSystem:
         st.progress(progress["progress"])
         st.caption(progress["message"])
         st.markdown(f"**상호작용:** {st.session_state.get('interaction_count', 0)}회")
+
+        if active_page:
+            st.markdown(f"""
+            <style>
+            [data-testid="stSidebarNav"] a[href*="/{active_page}"],
+            [data-testid="stSidebarNav"] a[href="/"] {{
+                background: linear-gradient(90deg, rgba(255,75,75,0.1) 0%, transparent 100%);
+                border-left: 3px solid #FF4B4B;
+                font-weight: 600;
+            }}
+            </style>
+            """, unsafe_allow_html=True)

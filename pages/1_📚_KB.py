@@ -15,7 +15,7 @@ st.title("📚 Knowledge Base")
 kb = KBManager()
 
 with st.sidebar:
-    LevelSystem.render_sidebar()
+    LevelSystem.render_sidebar("KB")
     with st.expander("📊 KB 통계", expanded=True):
         kb_content = kb.read()
         file_size = os.path.getsize(kb.kb_path)
