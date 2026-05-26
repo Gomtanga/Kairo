@@ -1,4 +1,6 @@
 # [KAIRO] Cron Manager - Static and dynamic cron job management
+import json
+import os
 from datetime import datetime
 from typing import Optional, Callable
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -6,23 +8,40 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from core.config import CRON_MAX_RETRIES
 
+CRON_JOBS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cron_jobs.json")
+
 
 class CronManager:
-    """Manages static and dynamic cron jobs via APScheduler."""
 
     def __init__(self):
         self.scheduler = BackgroundScheduler()
-        self.jobs: dict[str, dict] = {}  # job_id -> metadata
+        self.jobs: dict[str, dict] = {}
         self._started = False
+        self._load_jobs()
+
+    def _load_jobs(self):
+        if os.path.exists(CRON_JOBS_PATH):
+            try:
+                with open(CRON_JOBS_PATH, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                for job_id, meta in data.items():
+                    self.jobs[job_id] = meta
+            except Exception:
+                pass
+
+    def _save_jobs(self):
+        try:
+            with open(CRON_JOBS_PATH, "w", encoding="utf-8") as f:
+                json.dump(self.jobs, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
 
     def start(self):
-        """Start the scheduler."""
         if not self._started:
             self.scheduler.start()
             self._started = True
 
     def stop(self):
-        """Stop the scheduler."""
         if self._started:
             self.scheduler.shutdown(wait=False)
             self._started = False
@@ -35,15 +54,6 @@ class CronManager:
         task_description: str,
         callback: Optional[Callable] = None,
     ) -> bool:
-        """Add a static (user-defined) cron job.
-
-        Args:
-            job_id: Unique identifier
-            cron_expr: Cron expression (e.g., "0 9 * * *" for daily 9am)
-            task_name: Human-readable name
-            task_description: What the job does
-            callback: Optional callable to execute
-        """
         try:
             parts = cron_expr.split()
             if len(parts) != 5:
@@ -74,9 +84,10 @@ class CronManager:
                 "created": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 "status": "active",
             }
+            self._save_jobs()
             return True
 
-        except Exception as e:
+        except Exception:
             return False
 
     def add_dynamic_cron(
@@ -88,7 +99,6 @@ class CronManager:
         confidence: float = 0.0,
         callback: Optional[Callable] = None,
     ) -> bool:
-        """Add a dynamic (agent-suggested) cron job."""
         try:
             parts = cron_expr.split()
             if len(parts) != 5:
@@ -120,19 +130,20 @@ class CronManager:
                 "created": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 "status": "active",
             }
+            self._save_jobs()
             return True
 
         except Exception:
             return False
 
     def remove_cron(self, job_id: str) -> bool:
-        """Remove a cron job."""
         if job_id in self.jobs:
             try:
                 self.scheduler.remove_job(job_id)
             except Exception:
                 pass
             del self.jobs[job_id]
+            self._save_jobs()
             return True
         return False
 
@@ -143,6 +154,7 @@ class CronManager:
             except Exception:
                 pass
             self.jobs[job_id]["status"] = "paused"
+            self._save_jobs()
             return True
         return False
 
@@ -153,18 +165,17 @@ class CronManager:
             except Exception:
                 pass
             self.jobs[job_id]["status"] = "active"
+            self._save_jobs()
             return True
         return False
 
     def list_crons(self) -> list[dict]:
-        """List all cron jobs."""
         return [
             {"id": job_id, **metadata}
             for job_id, metadata in self.jobs.items()
         ]
 
     def get_cron(self, job_id: str) -> Optional[dict]:
-        """Get a specific cron job's metadata."""
         if job_id in self.jobs:
             return {"id": job_id, **self.jobs[job_id]}
         return None
