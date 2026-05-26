@@ -376,7 +376,7 @@ if user_input:
 
     # [KAIRO] auto-title on first message
     current_session = SessionManager.load_session(st.session_state.current_session_id)
-    if current_session and current_session.get("title", "").startswith("새 세션"):
+    if current_session and current_session.get("title", "").startswith("새 대화"):
         auto_title = user_input[:20].strip() + ("..." if len(user_input) > 20 else "")
         SessionManager.update_title(st.session_state.current_session_id, auto_title)
 
@@ -426,7 +426,7 @@ if user_input:
     dynamic_forms = extract_forms(final_response)
     if updates or graph_edges or cron_suggestions:
         display_response = re.sub(r"```kb-(?:update|graph|cron)\n.*?```\n?", "", display_response, flags=re.DOTALL).strip()
-    display_response = re.sub(r"---TOOL---\s*\ncommand:.*?\n(?:---TOOL---\s*\n?)?", "", display_response, flags=re.DOTALL).strip()
+    display_response = re.sub(r"---TOOL---[\s\S]*?(?:---TOOL---|$)", "", display_response).strip()
     display_response = re.sub(r"---FORM---\s*\n.*?\n---FORM_END---", "", display_response, flags=re.DOTALL).strip()
     display_response = re.sub(r"---BUTTON---\s*\n.*?\n(?:---BUTTON---)?", "", display_response, flags=re.DOTALL).strip()
     display_response = re.sub(r"---TABLE---\s*\n.*?\n---TABLE_END---", "", display_response, flags=re.DOTALL).strip()
