@@ -163,18 +163,27 @@ if user_input:
     save_chat_history(st.session_state.messages)
 
     with st.chat_message("assistant"):
-        with st.spinner("💭 생성 중..."):
-            chat_messages = [
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ]
-            kb_content = kb.read()
-            if "## 🔧 Skills" in kb_content:
-                kb_content = SkillStore.migrate_from_kb(kb_content)
-                kb.write(kb_content)
-            skills_section = SkillStore.to_kb_section(SkillStore.load())
-            full_context = kb_content + "\n\n" + skills_section if skills_section else kb_content
-            raw_response = llm.chat(chat_messages, kb_content=full_context)
+        chat_messages = [
+            {"role": m["role"], "content": m["content"]}
+            for m in st.session_state.messages
+        ]
+        kb_content = kb.read()
+        if "## 🔧 Skills" in kb_content:
+            kb_content = SkillStore.migrate_from_kb(kb_content)
+            kb.write(kb_content)
+        skills_section = SkillStore.to_kb_section(SkillStore.load())
+        full_context = kb_content + "\n\n" + skills_section if skills_section else kb_content
+
+        # [KAIRO] try streaming, fallback to sync
+        streamed_text = ""
+        try:
+            stream_gen = llm.chat_stream(chat_messages, kb_content=full_context)
+            streamed_text = st.write_stream(stream_gen)
+        except Exception:
+            with st.spinner("💭 생성 중..."):
+                streamed_text = llm.chat(chat_messages, kb_content=full_context)
+            st.markdown(streamed_text)
+        raw_response = streamed_text
 
     # [KAIRO] TOOL execution loop
     tool_commands = extract_tool_commands(raw_response)
@@ -188,6 +197,8 @@ if user_input:
                 status = tr.get("output", "") or tr.get("error", "")
                 status_preview = status[:200] + ("..." if len(status) > 200 else "")
                 st.info(f"🛠 `{tr['command']}` {icon}\n```\n{status_preview}\n```")
+        with st.chat_message("assistant"):
+            st.markdown(final_response)
     else:
         final_response = raw_response
 
@@ -201,9 +212,7 @@ if user_input:
     if not display_response.strip():
         display_response = final_response
 
-    with st.chat_message("assistant"):
-        st.markdown(display_response)
-    st.session_state.messages.append({"role": "assistant", "content": display_response})
+    st.session_state.messages.append({"role": "assistant", "content": display_response if display_response.strip() else final_response})
     save_chat_history(st.session_state.messages)
 
     if updates:
