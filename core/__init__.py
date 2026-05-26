@@ -6,6 +6,7 @@ from core.skill_system import SkillSystem, SkillStore
 from core.level_system import LevelSystem
 from core.cron_manager import CronManager
 from core.knowledge_graph import KnowledgeGraph
+from core.tool_system import ToolSystem
 
 __all__ = [
     "KBManager",
@@ -15,4 +16,5 @@ __all__ = [
     "LevelSystem",
     "CronManager",
     "KnowledgeGraph",
+    "ToolSystem",
 ]
