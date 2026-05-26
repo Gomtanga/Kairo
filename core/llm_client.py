@@ -110,6 +110,11 @@ class LLMClient:
             "```\n"
             "- 여러 섹션을 업데이트하려면 ```kb-update 블록을 여러 개 사용하세요.\n"
             "- 블록 안에는 해당 섹션의 헤더(`## `)와 전체 내용을 포함하세요.\n"
+            "\n지식 그래프 엣지 규칙:\n"
+            "- 대화 중 두 개념의 관계를 발견하면 응답 맨 끝에 다음 형식으로 추가하세요:\n"
+            "```kb-graph\n"
+            "source: 개념A\ntarget: 개념B\ntype: 관계유형\n```\n"
+            "- type 예시: related_to, depends_on, part_of, leads_to\n"
         )
 
         if kb_content:

@@ -3,7 +3,7 @@ import json
 import os
 import re
 import streamlit as st
-from core import KBManager, LLMClient, LevelSystem, SkillSystem, SkillStore
+from core import KBManager, LLMClient, LevelSystem, SkillSystem, SkillStore, KnowledgeGraph
 
 CHAT_HISTORY_PATH = os.path.join(os.path.dirname(__file__), "chat_history.json")
 
@@ -14,6 +14,20 @@ def extract_kb_updates(response: str) -> tuple[str, list[str]]:
     if updates:
         display = re.sub(r"```kb-update\n.*?```\n?", "", response, flags=re.DOTALL).strip()
     return display, updates
+
+
+def extract_graph_edges(response: str) -> list[dict]:
+    blocks = re.findall(r"```kb-graph\n(.*?)```", response, re.DOTALL)
+    edges = []
+    for block in blocks:
+        edge = {}
+        for line in block.strip().split("\n"):
+            match = re.match(r"(\w+):\s*(.+)", line.strip())
+            if match:
+                edge[match.group(1)] = match.group(2).strip()
+        if "source" in edge and "target" in edge:
+            edges.append(edge)
+    return edges
 
 
 def load_chat_history() -> list[dict]:
@@ -90,6 +104,9 @@ if user_input:
             raw_response = llm.chat(chat_messages, kb_content=full_context)
 
     display_response, updates = extract_kb_updates(raw_response)
+    graph_edges = extract_graph_edges(raw_response)
+    if updates or graph_edges:
+        display_response = re.sub(r"```kb-(?:update|graph)\n.*?```\n?", "", display_response, flags=re.DOTALL).strip()
 
     if not display_response.strip():
         display_response = raw_response
@@ -111,6 +128,18 @@ if user_input:
                 current_kb += f"\n\n{update_block.strip()}"
                 kb.write(current_kb)
         st.toast("📝 KB.md가 업데이트되었습니다!", icon="📝")
+
+    if graph_edges:
+        current_kb = kb.read()
+        for edge in graph_edges:
+            current_kb = KnowledgeGraph.add_edge(
+                current_kb,
+                source=edge["source"],
+                target=edge["target"],
+                edge_type=edge.get("type", "related_to"),
+            )
+        kb.write(current_kb)
+        st.toast(f"🧩 {len(graph_edges)}개 지식 연결이 발견되었습니다!", icon="🧩")
 
     new_count = kb.increment_interaction()
     st.session_state.interaction_count = new_count
