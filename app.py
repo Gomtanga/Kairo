@@ -137,6 +137,20 @@ with st.sidebar:
     st.markdown(f"**총 상호작용:** {st.session_state.interaction_count}회")
     st.markdown(f"**KB.md 토큰:** 약 {kb.estimate_tokens():,}개")
 
+    # [KAIRO] tool execution log sidebar
+    tool_logs = ToolSystem.load_logs()
+    if tool_logs:
+        recent = tool_logs[-5:][::-1]
+        st.divider()
+        st.subheader("🛠 도구 실행 로그")
+        for log in recent:
+            icon = "✅" if log["success"] else "❌"
+            ts = log.get("timestamp", "")
+            preview = log.get("output_preview", "")[:60]
+            st.caption(f"{icon} `{log['command']}` _{ts}_")
+            if preview:
+                st.code(preview, language="bash")
+
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
