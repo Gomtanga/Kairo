@@ -40,10 +40,24 @@ else:
                     st.session_state.edit_skill_name = skill["name"]
                     st.rerun()
             with col2:
+                del_key = f"_confirm_del_{skill['name']}"
                 if st.button("🗑️ 삭제", key=f"delete_{skill['name']}"):
+                    st.session_state[del_key] = True
+                    st.rerun()
+
+        if st.session_state.get(del_key):
+            st.warning(f"정말 **{skill['name']}** 스킬을 삭제하시겠습니까?")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("예, 삭제합니다", key=f"confirm_{skill['name']}"):
                     new_content = SkillSystem.remove_skill(kb_content, skill["name"])
                     kb_manager.write(new_content)
                     st.session_state.success_message = f"'{skill['name']}' 스킬이 삭제되었습니다."
+                    st.session_state.pop(del_key, None)
+                    st.rerun()
+            with c2:
+                if st.button("취소", key=f"cancel_{skill['name']}"):
+                    st.session_state.pop(del_key, None)
                     st.rerun()
 
 st.divider()
