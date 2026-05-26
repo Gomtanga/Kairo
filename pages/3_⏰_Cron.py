@@ -14,6 +14,34 @@ if "cron_manager" not in st.session_state:
 
 cron_manager = st.session_state.cron_manager
 
+pending = st.session_state.get("pending_crons", [])
+if pending:
+    st.header("💡 에이전트 추천 크론")
+    for i, suggestion in enumerate(pending):
+        with st.container(border=True):
+            st.markdown(f"**{suggestion.get('name', '추천 크론')}**")
+            st.markdown(f"표현식: `{suggestion.get('cron', '')}`")
+            st.markdown(f"작업: {suggestion.get('action', '')}")
+            if suggestion.get("description"):
+                st.caption(suggestion["description"])
+            ac1, ac2 = st.columns(2)
+            with ac1:
+                if st.button("✅ 수락", key=f"accept_cron_{i}"):
+                    cron_manager.add_static_cron(
+                        suggestion["name"],
+                        suggestion["cron"],
+                        suggestion.get("action", suggestion["name"]),
+                        suggestion.get("description", ""),
+                    )
+                    st.session_state.pending_crons.pop(i)
+                    st.success(f"'{suggestion['name']}' 크론 잡이 등록되었습니다!")
+                    st.rerun()
+            with ac2:
+                if st.button("❌ 거절", key=f"reject_cron_{i}"):
+                    st.session_state.pending_crons.pop(i)
+                    st.rerun()
+    st.divider()
+
 with st.expander("ℹ️ 크론 표현식 도움말", expanded=False):
     st.subheader("크론 표현식 형식")
     st.markdown(

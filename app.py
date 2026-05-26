@@ -30,6 +30,20 @@ def extract_graph_edges(response: str) -> list[dict]:
     return edges
 
 
+def extract_cron_suggestions(response: str) -> list[dict]:
+    blocks = re.findall(r"```kb-cron\n(.*?)```", response, re.DOTALL)
+    suggestions = []
+    for block in blocks:
+        cron = {}
+        for line in block.strip().split("\n"):
+            match = re.match(r"(\w+):\s*(.+)", line.strip())
+            if match:
+                cron[match.group(1)] = match.group(2).strip()
+        if "name" in cron and "cron" in cron:
+            suggestions.append(cron)
+    return suggestions
+
+
 def load_chat_history() -> list[dict]:
     if os.path.exists(CHAT_HISTORY_PATH):
         with open(CHAT_HISTORY_PATH, "r", encoding="utf-8") as f:
@@ -105,8 +119,9 @@ if user_input:
 
     display_response, updates = extract_kb_updates(raw_response)
     graph_edges = extract_graph_edges(raw_response)
-    if updates or graph_edges:
-        display_response = re.sub(r"```kb-(?:update|graph)\n.*?```\n?", "", display_response, flags=re.DOTALL).strip()
+    cron_suggestions = extract_cron_suggestions(raw_response)
+    if updates or graph_edges or cron_suggestions:
+        display_response = re.sub(r"```kb-(?:update|graph|cron)\n.*?```\n?", "", display_response, flags=re.DOTALL).strip()
 
     if not display_response.strip():
         display_response = raw_response
@@ -140,6 +155,12 @@ if user_input:
             )
         kb.write(current_kb)
         st.toast(f"🧩 {len(graph_edges)}개 지식 연결이 발견되었습니다!", icon="🧩")
+
+    if cron_suggestions:
+        if "pending_crons" not in st.session_state:
+            st.session_state.pending_crons = []
+        st.session_state.pending_crons.extend(cron_suggestions)
+        st.toast(f"⏰ {len(cron_suggestions)}개 크론 잡이 제안되었습니다!", icon="⏰")
 
     new_count = kb.increment_interaction()
     st.session_state.interaction_count = new_count

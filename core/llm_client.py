@@ -115,6 +115,12 @@ class LLMClient:
             "```kb-graph\n"
             "source: 개념A\ntarget: 개념B\ntype: 관계유형\n```\n"
             "- type 예시: related_to, depends_on, part_of, leads_to\n"
+            "\n동적 크론 제안 규칙:\n"
+            "- 사용자가 반복적인 작업, 알림, 스케줄을 언급하면 크론 잡을 제안하세요.\n"
+            "- 응답 맨 끝에 다음 형식으로 추가하세요:\n"
+            "```kb-cron\n"
+            "name: 작업이름\ncron: */30 * * * *\naction: 실행할 작업 설명\ndescription: 왜 이 크론이 유용한지\n```\n"
+            "- cron 표현식은 5필드(분 시 일 월 요일) 형식을 사용하세요.\n"
         )
 
         if kb_content:
