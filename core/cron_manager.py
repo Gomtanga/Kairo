@@ -9,6 +9,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from core.config import CRON_MAX_RETRIES
 
 CRON_JOBS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cron_jobs.json")
+CRON_RESULTS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cron_results.json")
 
 
 class CronManager:
@@ -16,8 +17,10 @@ class CronManager:
     def __init__(self):
         self.scheduler = BackgroundScheduler()
         self.jobs: dict[str, dict] = {}
+        self.results: dict[str, dict] = {}
         self._started = False
         self._load_jobs()
+        self._load_results()
 
     def _load_jobs(self):
         if os.path.exists(CRON_JOBS_PATH):
@@ -35,6 +38,48 @@ class CronManager:
                 json.dump(self.jobs, f, ensure_ascii=False, indent=2)
         except Exception:
             pass
+
+    def _load_results(self):
+        if os.path.exists(CRON_RESULTS_PATH):
+            try:
+                with open(CRON_RESULTS_PATH, "r", encoding="utf-8") as f:
+                    self.results = json.load(f)
+            except Exception:
+                self.results = {}
+
+    def _save_results(self):
+        try:
+            with open(CRON_RESULTS_PATH, "w", encoding="utf-8") as f:
+                json.dump(self.results, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    def get_result(self, job_id: str) -> Optional[dict]:
+        return self.results.get(job_id)
+
+    def execute_job(self, job_id: str) -> dict:
+        if job_id not in self.jobs:
+            return {"status": "error", "message": f"잡 '{job_id}'을 찾을 수 없습니다."}
+
+        job = self.jobs[job_id]
+        task_name = job.get("task_name", job_id)
+        task_description = job.get("task_description", "")
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        result = {
+            "status": "success",
+            "job_id": job_id,
+            "task_name": task_name,
+            "executed_at": now,
+            "message": f"'{task_name}' 작업이 실행되었습니다.",
+        }
+
+        if task_description:
+            result["task_description"] = task_description
+
+        self.results[job_id] = result
+        self._save_results()
+        return result
 
     def start(self):
         if not self._started:
@@ -72,6 +117,15 @@ class CronManager:
                     callback,
                     trigger=trigger,
                     id=job_id,
+                    max_instances=1,
+                    misfire_grace_time=60,
+                )
+            else:
+                self.scheduler.add_job(
+                    self.execute_job,
+                    trigger=trigger,
+                    id=job_id,
+                    args=[job_id],
                     max_instances=1,
                     misfire_grace_time=60,
                 )
@@ -117,6 +171,15 @@ class CronManager:
                     callback,
                     trigger=trigger,
                     id=job_id,
+                    max_instances=1,
+                    misfire_grace_time=60,
+                )
+            else:
+                self.scheduler.add_job(
+                    self.execute_job,
+                    trigger=trigger,
+                    id=job_id,
+                    args=[job_id],
                     max_instances=1,
                     misfire_grace_time=60,
                 )
