@@ -2,6 +2,7 @@
 import json
 import os
 import re
+from datetime import datetime
 import streamlit as st
 from core import KBManager, LLMClient, LevelSystem, SkillSystem, SkillStore, KnowledgeGraph, ToolSystem, SessionManager
 
@@ -332,9 +333,39 @@ with st.sidebar:
             if preview:
                 st.code(preview, language="bash")
 
-for msg in st.session_state.messages:
+SAVED_MESSAGES_PATH = os.path.join(os.path.dirname(__file__), "saved_messages.json")
+
+
+def load_saved_messages() -> list[dict]:
+    if os.path.exists(SAVED_MESSAGES_PATH):
+        with open(SAVED_MESSAGES_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+
+def save_saved_messages(messages: list[dict]):
+    with open(SAVED_MESSAGES_PATH, "w", encoding="utf-8") as f:
+        json.dump(messages, f, ensure_ascii=False, indent=2)
+
+
+for idx, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
+        if msg["role"] == "assistant" and idx > 0:
+            col_save, col_fork = st.columns([1, 1])
+            with col_save:
+                if st.button("📌 저장", key=f"save_{idx}"):
+                    saved = load_saved_messages()
+                    saved.append({"role": msg["role"], "content": msg["content"], "saved_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+                    save_saved_messages(saved)
+                    st.toast("📌 메시지가 저장되었습니다!")
+            with col_fork:
+                if st.button("🔀 포크", key=f"fork_{idx}"):
+                    forked = SessionManager.fork_session(st.session_state.current_session_id, idx)
+                    if forked:
+                        st.session_state.current_session_id = forked["id"]
+                        st.session_state.messages = forked["messages"]
+                        st.rerun()
 
 user_input = st.chat_input("Kairo에게 메시지를 보내세요...")
 if user_input:
