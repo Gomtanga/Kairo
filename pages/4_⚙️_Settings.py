@@ -2,9 +2,13 @@
 import streamlit as st
 from core.config import read_env, save_env, reload_env
 from core.llm_client import LLMClient
+from core import LevelSystem
 
 st.set_page_config(page_title="설정 - Kairo", page_icon="⚙️", layout="wide")
 st.title("⚙️ 설정")
+
+with st.sidebar:
+    LevelSystem.render_sidebar()
 
 env = read_env()
 

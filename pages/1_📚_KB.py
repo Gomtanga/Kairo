@@ -3,7 +3,7 @@ import re
 import streamlit as st
 import os
 
-from core import KBManager, KnowledgeGraph
+from core import KBManager, KnowledgeGraph, LevelSystem
 
 
 def strip_html_comments(text: str) -> str:
@@ -15,6 +15,7 @@ st.title("📚 Knowledge Base")
 kb = KBManager()
 
 with st.sidebar:
+    LevelSystem.render_sidebar()
     with st.expander("📊 KB 통계", expanded=True):
         kb_content = kb.read()
         file_size = os.path.getsize(kb.kb_path)

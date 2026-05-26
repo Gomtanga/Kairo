@@ -1,11 +1,14 @@
 # [KAIRO]
 import streamlit as st
 
-from core import KBManager, SkillSystem
+from core import KBManager, SkillSystem, LevelSystem
 
 st.set_page_config(page_title="에이전트 관리 - Kairo", page_icon="🤖", layout="wide")
 
 st.title("🤖 에이전트 관리")
+
+with st.sidebar:
+    LevelSystem.render_sidebar()
 
 if "edit_skill_name" not in st.session_state:
     st.session_state.edit_skill_name = None
