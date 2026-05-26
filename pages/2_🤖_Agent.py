@@ -125,7 +125,13 @@ query = st.text_input("테스트 쿼리", placeholder="자연어 쿼리를 입�
 if query:
     matched = SkillSystem.match_skill(query, skills)
     if matched:
-        st.success(f"매칭된 스킬: **{matched['name']}**")
-        st.json(matched)
+        skill = matched["skill"]
+        keyword = matched.get("matched_keyword", "—")
+        score = matched.get("score", 100)
+        method = matched.get("method", "exact")
+        method_label = {"exact": "정확", "stem": "어간", "fuzzy": "유사"}.get(method, method)
+        st.success(f"매칭된 스킬: **{skill['name']}** ({keyword}, {score}%, {method_label})")
+        with st.expander("상세"):
+            st.json(skill)
     else:
         st.warning("매칭된 스킬이 없습니다.")
