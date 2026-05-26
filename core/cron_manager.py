@@ -100,6 +100,35 @@ class CronManager:
         if not self._started:
             self.scheduler.start()
             self._started = True
+            self._restore_scheduled_jobs()
+
+    def _restore_scheduled_jobs(self):
+        for job_id, meta in self.jobs.items():
+            if meta.get("status") != "active":
+                continue
+            if self.scheduler.get_job(job_id) is not None:
+                continue
+            parts = meta.get("cron_expr", "").split()
+            if len(parts) != 5:
+                continue
+            try:
+                trigger = CronTrigger(
+                    minute=parts[0],
+                    hour=parts[1],
+                    day=parts[2],
+                    month=parts[3],
+                    day_of_week=parts[4],
+                )
+                self.scheduler.add_job(
+                    self.execute_job,
+                    trigger=trigger,
+                    id=job_id,
+                    args=[job_id],
+                    max_instances=1,
+                    misfire_grace_time=60,
+                )
+            except Exception:
+                pass
 
     def stop(self):
         if self._started:
