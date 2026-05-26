@@ -84,6 +84,13 @@ for cron in crons:
             st.markdown(f"**{cron['task_name']}**")
             if cron.get("task_description"):
                 st.caption(cron["task_description"])
+            last_result = cron_manager.get_result(cron["id"])
+            if last_result:
+                status_icon = "✅" if last_result.get("status") == "success" else "❌"
+                st.caption(f"{status_icon} 마지막 실행: {last_result.get('executed_at', '?')}")
+                if last_result.get("llm_response"):
+                    with st.expander("실행 결과 보기"):
+                        st.markdown(last_result["llm_response"])
 
         with col3:
             if cron["status"] == "active":
@@ -93,8 +100,16 @@ for cron in crons:
             st.caption(f"등록: {cron['created']}")
 
         if st.session_state.get("_editing_job_id") != cron["id"]:
-            a_col1, a_col2, a_col3 = st.columns([1, 1, 1])
+            a_col1, a_col2, a_col3, a_col4 = st.columns([1, 1, 1, 1])
             with a_col1:
+                if st.button("▶ 지금 실행", key=f"run_{cron['id']}"):
+                    result = cron_manager.execute_job(cron["id"])
+                    if result.get("status") == "success":
+                        st.success(f"✅ '{cron['task_name']}' 실행 완료")
+                    else:
+                        st.error(result.get("message", "실행 실패"))
+                    st.rerun()
+            with a_col2:
                 if cron["status"] == "active":
                     if st.button("⏸ 일시정지", key=f"pause_{cron['id']}"):
                         cron_manager.pause_cron(cron["id"])
@@ -105,11 +120,11 @@ for cron in crons:
                         cron_manager.resume_cron(cron["id"])
                         st.success(f"`{cron['id']}` 재개되었습니다.")
                         st.rerun()
-            with a_col2:
+            with a_col3:
                 if st.button("🗑 삭제", key=f"remove_{cron['id']}"):
                     st.session_state["_confirm_delete"] = cron["id"]
                     st.rerun()
-            with a_col3:
+            with a_col4:
                 pass
 
         if st.session_state.get("_confirm_delete") == cron["id"]:
