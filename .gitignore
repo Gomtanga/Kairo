@@ -17,4 +17,5 @@ kb.md
 kb.md.bak
 chat_history.json
 cron_jobs.json
+cron_results.json
 skills.json
