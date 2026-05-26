@@ -146,9 +146,13 @@ if query:
         keyword = matched.get("matched_keyword", "—")
         score = matched.get("score", 100)
         method = matched.get("method", "exact")
-        method_label = {"exact": "정확", "stem": "어간", "fuzzy": "유사"}.get(method, method)
-        st.success(f"매칭된 스킬: **{skill['name']}** ({keyword}, {score}%, {method_label})")
-        with st.expander("상세"):
+        method_label = {"exact": "🟢 정확 일치", "stem": "🔵 어간 매칭", "fuzzy": "🟠 유사 매칭"}.get(method, method)
+        st.success(f"매칭된 스킬: **{skill['name']}**")
+        m1, m2, m3 = st.columns(3)
+        m1.metric("매칭 키워드", keyword)
+        m2.metric("매칭 점수", f"{score}%")
+        m3.markdown(f"**매칭 방식**\n{method_label}")
+        with st.expander("스킬 상세"):
             st.json(skill)
     else:
         st.warning("매칭된 스킬이 없습니다.")
