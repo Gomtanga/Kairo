@@ -67,6 +67,13 @@ LLM 응답 처리:
 | [RapidFuzz](https://github.com/maxbachmann/RapidFuzz) | MIT | 퍼지 문자열 매칭 |
 | [Kiwi](https://github.com/bab2min/kiwipiepy) | LGPL | 한국어 형태소 분석 |
 
+### 참고한 프로젝트 (철학/영감)
+
+| 프로젝트 | 설명 | 영향 |
+|----------|------|------|
+| [Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) | "LLM이 유지보수하는 영속적인 위키" 패턴 | **KB.md 철학의 근간.** RAG 대신 LLM이 직접 지식을 축적/관리하는 개념을 차용 |
+| [Hermes Agent](https://github.com/NousResearch/hermes-agent) | 자기 수정 프롬프트 + 스킬 시스템 | 레벨 기반 자율주행 아키텍처와 동적 크론 시스템에 영감
+
 ---
 
 ## 시작하기
