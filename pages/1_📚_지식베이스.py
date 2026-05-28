@@ -9,7 +9,7 @@ from core import KBManager, KnowledgeGraph, LevelSystem
 def strip_html_comments(text: str) -> str:
     return re.sub(r"<!--.*?-->", "", text).strip()
 
-st.set_page_config(page_title="KB.md - Kairo", page_icon="📚", layout="wide")
+st.set_page_config(page_title="지식베이스 - Kairo", page_icon="📚", layout="wide")
 st.title("📚 Knowledge Base")
 
 @st.cache_resource
@@ -22,7 +22,7 @@ kb = get_kb_manager()
 kb_content = kb.read()
 
 with st.sidebar:
-    LevelSystem.render_sidebar("KB")
+    LevelSystem.render_sidebar("지식베이스")
     with st.expander("📊 KB 통계", expanded=True):
         file_size = os.path.getsize(kb.kb_path)
         st.write(f"**파일 크기:** {file_size / 1024:.1f} KB")
