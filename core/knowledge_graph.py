@@ -147,3 +147,64 @@ class KnowledgeGraph:
 
         lines.append("}")
         return "\n".join(lines)
+
+    @staticmethod
+    def discover_edges_from_kb(kb_content: str) -> list[dict]:
+        section_pattern = re.compile(r"^## (.+)$", re.MULTILINE)
+        sections = []
+        for match in section_pattern.finditer(kb_content):
+            sections.append({
+                "name": match.group(1).strip(),
+                "start": match.end(),
+            })
+
+        if len(sections) < 1:
+            return []
+
+        for i, sec in enumerate(sections):
+            end = sections[i + 1]["start"] if i + 1 < len(sections) else len(kb_content)
+            sec["content"] = kb_content[sec["start"]:end]
+
+        skip_prefixes = ("🧩 Knowledge Graph", "📊 Growth Log", "⏰ Cron History")
+        relevant = [s for s in sections if not any(s["name"].startswith(p) for p in skip_prefixes)]
+
+        existing_edges = KnowledgeGraph.parse_edges(kb_content)
+        existing_pairs = {
+            (e.get("source", ""), e.get("target", ""), e.get("type", ""))
+            for e in existing_edges
+        }
+
+        new_edges = []
+
+        for i in range(len(relevant)):
+            for j in range(i + 1, len(relevant)):
+                s1, s2 = relevant[i], relevant[j]
+                pair = (s1["name"], s2["name"], "related_to")
+                if pair not in existing_pairs:
+                    new_edges.append({
+                        "source": s1["name"],
+                        "target": s2["name"],
+                        "type": "related_to",
+                    })
+                    existing_pairs.add(pair)
+
+        for sec in relevant:
+            keywords = set()
+            for m in re.finditer(r"`([^`]+)`", sec["content"]):
+                keywords.add(m.group(1).strip())
+            for m in re.finditer(r"\*\*([^*]+)\*\*", sec["content"]):
+                kw = m.group(1).strip()
+                if len(kw) < 30:
+                    keywords.add(kw)
+
+            for kw in sorted(keywords):
+                pair = (kw, sec["name"], "part_of")
+                if pair not in existing_pairs:
+                    new_edges.append({
+                        "source": kw,
+                        "target": sec["name"],
+                        "type": "part_of",
+                    })
+                    existing_pairs.add(pair)
+
+        return new_edges
