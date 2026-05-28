@@ -108,11 +108,12 @@ class LLMClient:
         temperature: float = None,
         max_tokens: int = None,
         use_tools: bool = False,
+        agent_level: int = 0,
     ) -> dict:
         if not self.api_key:
             return {"content": "⚠️ API 키가 설정되지 않았습니다. .env.toml 파일을 확인해주세요.", "tool_calls": []}
 
-        system_prompt = self._build_system_prompt(kb_content)
+        system_prompt = self._build_system_prompt(kb_content, agent_level)
         full_messages = [{"role": "system", "content": system_prompt}] + messages
 
         headers = {
@@ -264,7 +265,7 @@ class LLMClient:
                 continue
         return parsed
 
-    def _build_system_prompt(self, kb_content: str) -> str:
+    def _build_system_prompt(self, kb_content: str, agent_level: int = 0) -> str:
         prompt = (
             "당신은 Kairo(카이로)입니다 — 사용자와 함께 성장하는 개인 지식 에이전트입니다.\n"
             "아래 KB.md 내용을 바탕으로 사용자를 도와주세요.\n\n"
@@ -313,6 +314,22 @@ class LLMClient:
             "- 퀴즈, 설문, 비교 등 구조화된 정보를 제시할 때도 적극적으로 도구를 활용하세요.\n"
             "- 주의: create_button은 사용자가 UI 인터랙션을 요청할 때만 사용하세요. 명령어 실행이나 정보 조회에는 터미널 도구를 사용하세요.\n"
         )
+
+        if agent_level >= 2:
+            prompt += (
+                "\n\n[현재 자율 레벨 2 — 의도 예측 모드]\n"
+                "사용자의 질문 의도를 예측하여 먼저 제안하세요.\n"
+                "예: 사용자가 '내일 날씨'를 물으면 날씨 정보와 함께 '일정표도 확인할까요?'라고 제안하세요.\n"
+                "사용자가 하려는 행동을 미리 파악하고 관련된 추가 도움을 적극 제안하세요.\n"
+            )
+
+        if agent_level >= 3:
+            prompt += (
+                "\n\n[현재 자율 레벨 3 — 선제적 액션 모드]\n"
+                "사용자가 질문하기 전에도 필요한 정보를 먼저 제공하세요.\n"
+                "시간대에 맞는 제안을 우선하세요 (아침: 일정/날씨, 저녁: 복습/정리).\n"
+                "오랜만에 접속한 사용자에게는 변화된 내용을 요약해서 알려주세요.\n"
+            )
 
         if kb_content:
             prompt += f"\n---\n## KB.md (Knowledge Base)\n{kb_content}\n---\n"
