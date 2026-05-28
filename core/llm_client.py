@@ -1,4 +1,5 @@
-# [KAIRO] LLM Client - LLM API Client
+# [KAIRO] LLM Client - LLM API Client with Function Calling
+import json as _json
 import requests
 from core.config import (
     LLM_API_KEY,
@@ -11,6 +12,85 @@ from core.config import (
     LLM_TEMPERATURE,
 )
 
+# [KAIRO] UI tool definitions for function calling
+UI_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "create_form",
+            "description": "Create an interactive form for user input. Use when you need structured data from the user (surveys, quizzes, registrations, etc).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "Form title displayed to user"},
+                    "fields": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string", "description": "Field label"},
+                                "field_type": {"type": "string", "enum": ["text", "number", "textarea", "select"], "description": "Input widget type"},
+                                "hint": {"type": "string", "description": "Placeholder or help text. For select type, provide comma-separated options"}
+                            },
+                            "required": ["name", "field_type"]
+                        },
+                        "description": "List of form fields"
+                    }
+                },
+                "required": ["title", "fields"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_table",
+            "description": "Create a data table to present structured information. Use when comparing items, listing data, or showing quiz results.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "Table title"},
+                    "headers": {"type": "array", "items": {"type": "string"}, "description": "Column headers"},
+                    "rows": {"type": "array", "items": {"type": "array", "items": {"type": "string"}}, "description": "Row data as arrays of strings"}
+                },
+                "required": ["title", "headers", "rows"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_chart",
+            "description": "Create a chart to visualize numerical data. Use when showing trends, comparisons, or distributions.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "chart_type": {"type": "string", "enum": ["bar", "line", "pie"], "description": "Type of chart"},
+                    "title": {"type": "string", "description": "Chart title"},
+                    "labels": {"type": "array", "items": {"type": "string"}, "description": "Data labels (x-axis or slice names)"},
+                    "values": {"type": "array", "items": {"type": "number"}, "description": "Data values"}
+                },
+                "required": ["chart_type", "title", "labels", "values"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_button",
+            "description": "Create an interactive button. Use when offering a quick action like 'submit', 'run script', 'show answer'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "label": {"type": "string", "description": "Button text shown to user"},
+                    "action": {"type": "string", "description": "Description of what happens when clicked"}
+                },
+                "required": ["label", "action"]
+            }
+        }
+    },
+]
+
 
 class LLMClient:
 
@@ -19,15 +99,17 @@ class LLMClient:
         self.base_url = LLM_BASE_URL
         self.model = LLM_MODEL
 
+    # [KAIRO] chat with optional tools support
     def chat(
         self,
         messages: list[dict],
         kb_content: str = "",
         temperature: float = None,
         max_tokens: int = None,
-    ) -> str:
+        use_tools: bool = False,
+    ) -> dict:
         if not self.api_key:
-            return "⚠️ API 키가 설정되지 않았습니다. .env.toml 파일을 확인해주세요."
+            return {"content": "⚠️ API 키가 설정되지 않았습니다. .env.toml 파일을 확인해주세요.", "tool_calls": []}
 
         system_prompt = self._build_system_prompt(kb_content)
         full_messages = [{"role": "system", "content": system_prompt}] + messages
@@ -47,6 +129,9 @@ class LLMClient:
                     "temperature": temperature or LLM_TEMPERATURE,
                     "max_tokens": tokens,
                 }
+                if use_tools:
+                    payload["tools"] = UI_TOOLS
+
                 response = requests.post(
                     f"{self.base_url}/chat/completions",
                     json=payload,
@@ -56,40 +141,42 @@ class LLMClient:
                 response.raise_for_status()
                 data = response.json()
                 message = data["choices"][0]["message"]
-                content = message.get("content", "")
-                if content:
-                    return content
+                content = message.get("content", "") or ""
+                tool_calls = self._parse_tool_calls(message.get("tool_calls", []))
+
+                if content or tool_calls:
+                    return {"content": content, "tool_calls": tool_calls}
                 if attempt < LLM_MAX_RETRIES:
                     tokens = tokens * 2
                     continue
-                return "💭 응답을 생성하는 중 시간이 부족했습니다. 다시 시도해주세요."
+                return {"content": "💭 응답을 생성하는 중 시간이 부족했습니다. 다시 시도해주세요.", "tool_calls": []}
 
             except requests.exceptions.Timeout:
                 if attempt < LLM_MAX_RETRIES:
                     import time
                     time.sleep(LLM_RETRY_DELAY)
                     continue
-                return "⏰ 응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요."
+                return {"content": "⏰ 응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.", "tool_calls": []}
 
             except requests.exceptions.ConnectionError:
-                return "🔌 서비스에 연결할 수 없습니다. 네트워크를 확인해주세요."
+                return {"content": "🔌 서비스에 연결할 수 없습니다. 네트워크를 확인해주세요.", "tool_calls": []}
 
             except requests.exceptions.HTTPError as e:
                 if response.status_code == 401:
-                    return "🔑 API 키가 유효하지 않습니다. .env 파일을 확인해주세요."
+                    return {"content": "🔑 API 키가 유효하지 않습니다. .env 파일을 확인해주세요.", "tool_calls": []}
                 if response.status_code == 429:
-                    return "⏳ 요청이 너무 많습니다. 잠시 후 다시 시도해주세요."
-                return f"❌ API 오류: {e}"
+                    return {"content": "⏳ 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", "tool_calls": []}
+                return {"content": f"❌ API 오류: {e}", "tool_calls": []}
 
             except (KeyError, IndexError):
-                return "❌ API 응답 형식 오류가 발생했습니다."
+                return {"content": "❌ API 응답 형식 오류가 발생했습니다.", "tool_calls": []}
 
             except Exception as e:
-                return f"❌ 예상치 못한 오류: {e}"
+                return {"content": f"❌ 예상치 못한 오류: {e}", "tool_calls": []}
 
-        return "❌ 최대 재시도 횟수를 초과했습니다."
+        return {"content": "❌ 최대 재시도 횟수를 초과했습니다.", "tool_calls": []}
 
-    # [KAIRO] streaming chat
+    # [KAIRO] streaming chat (no tool support — tools only in non-streaming)
     def chat_stream(self, messages: list[dict], kb_content: str = "", temperature: float = None, max_tokens: int = None):
         if not self.api_key:
             yield "⚠️ API 키가 설정되지 않았습니다. .env.toml 파일을 확인해주세요."
@@ -128,7 +215,6 @@ class LLMClient:
                 data = decoded[6:]
                 if data.strip() == "[DONE]":
                     break
-                import json as _json
                 try:
                     chunk = _json.loads(data)
                     delta = chunk["choices"][0].get("delta", {})
@@ -143,6 +229,22 @@ class LLMClient:
             yield "🔌 서비스에 연결할 수 없습니다."
         except Exception as e:
             yield f"❌ 스트리밍 오류: {e}"
+
+    # [KAIRO] parse tool_calls from API response
+    def _parse_tool_calls(self, raw_tool_calls: list) -> list[dict]:
+        parsed = []
+        if not raw_tool_calls:
+            return parsed
+        for tc in raw_tool_calls:
+            try:
+                func = tc.get("function", {})
+                name = func.get("name", "")
+                args_str = func.get("arguments", "{}")
+                args = _json.loads(args_str) if isinstance(args_str, str) else args_str
+                parsed.append({"name": name, "arguments": args})
+            except (_json.JSONDecodeError, KeyError):
+                continue
+        return parsed
 
     def _build_system_prompt(self, kb_content: str) -> str:
         prompt = (
@@ -185,30 +287,11 @@ class LLMClient:
             "- 사용 가능한 명령어: date, ls, cat, echo, git status, git diff, git log, pwd, wc, head, tail, whoami, uname, df\n"
             "- 위험한 명령어(rm, sudo 등)는 실행할 수 없습니다.\n"
             "- 한 응답에 여러 명령어를 실행할 수 있습니다.\n"
-            "\n동적 폼 규칙:\n"
-            "- 사용자로부터 체계적인 입력을 받아야 할 때 폼을 생성하세요.\n"
-            "- 응답에 다음 형식으로 폼을 포함하세요:\n"
-            "---FORM---\n"
-            "title: 폼 제목\n"
-            "field: 필드이름 | text | placeholder 텍스트\n"
-            "field: 나이 | number | 나이를 입력하세요\n"
-            "field: 취미 | textarea | 취미를 입력하세요\n"
-            "field: 언어 | select | 한국어,영어,일본어\n"
-            "---FORM_END---\n"
-            "- field 형식: 이름 | 타입 | 힌트\n"
-            "- 타입: text, number, textarea, select (select은 쉼표로 옵션 구분)\n"
-            "\n동적 위젯 규칙:\n"
-            "- 표가 필요할 때:\n"
-            "---TABLE---\n"
-            "이름|나이|도시\n"
-            "홍길동|25|서울\n"
-            "김영희|30|부산\n"
-            "---TABLE_END---\n"
-            "- 차트가 필요할 때 (type: bar, line, pie):\n"
-            "---CHART---\n"
-            "type: bar\ntitle: 월별 매출\n1월|100\n2월|150\n3월|200\n---CHART_END---\n"
-            "- 버튼이 필요할 때:\n"
-            "---BUTTON---\nlabel: 실행하기\naction: 스크립트 실행\n---BUTTON---\n"
+            "\nUI 도구 사용 규칙:\n"
+            "- 표, 폼, 차트, 버튼을 만들어야 할 때 제공된 도구(create_table, create_form, create_chart, create_button)를 호출하세요.\n"
+            "- 텍스트로 표를 그리거나 폼 형식을 설명하는 대신, 반드시 도구를 호출하세요.\n"
+            "- 사용자가 '표로 만들어', '폼 만들어', '차트 그려' 등이라고 요청하면 반드시 해당 도구를 호출하세요.\n"
+            "- 퀴즈, 설문, 비교 등 구조화된 정보를 제시할 때도 적극적으로 도구를 활용하세요.\n"
         )
 
         if kb_content:
