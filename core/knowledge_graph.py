@@ -102,3 +102,39 @@ class KnowledgeGraph:
             discovered = edge.get("discovered", "?")
             formatted.append(f"**{name}**: `{source}` → `{target}` ({edge_type}) _{discovered}_")
         return formatted
+
+    @staticmethod
+    def to_dot(edges: list[dict]) -> str:
+        if not edges:
+            return ""
+
+        edge_colors = {
+            "related_to": "#6366f1",
+            "depends_on": "#f59e0b",
+            "part_of": "#10b981",
+            "leads_to": "#ef4444",
+        }
+
+        lines = ["digraph KnowledgeGraph {"]
+        lines.append("    rankdir=LR;")
+        lines.append('    node [shape=box, style="rounded,filled", fillcolor="#f0f0f0", fontname="sans-serif"];')
+        lines.append('    edge [fontname="sans-serif", fontsize=10];')
+
+        nodes = set()
+        for edge in edges:
+            nodes.add(edge.get("source", "?"))
+            nodes.add(edge.get("target", "?"))
+
+        for node in sorted(nodes):
+            safe_id = node.replace(" ", "_").replace("-", "_")
+            lines.append(f'    {safe_id} [label="{node}"];')
+
+        for edge in edges:
+            source = edge.get("source", "?").replace(" ", "_").replace("-", "_")
+            target = edge.get("target", "?").replace(" ", "_").replace("-", "_")
+            edge_type = edge.get("type", "related_to")
+            color = edge_colors.get(edge_type, "#6366f1")
+            lines.append(f'    {source} -> {target} [label="{edge_type}", color="{color}", fontcolor="{color}"];')
+
+        lines.append("}")
+        return "\n".join(lines)

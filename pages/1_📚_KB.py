@@ -41,6 +41,9 @@ with viewer_tab:
     with st.expander("🧩 Knowledge Graph"):
         edges = KnowledgeGraph.parse_edges(kb_content)
         if edges:
+            dot_string = KnowledgeGraph.to_dot(edges)
+            if dot_string:
+                st.graphviz_chart(dot_string, width="stretch")
             formatted = KnowledgeGraph.format_edges_for_display(edges)
             for edge in formatted:
                 st.markdown(f"- {edge}")
