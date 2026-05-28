@@ -80,6 +80,55 @@ LLM_TEMPERATURE = 0.7
 # Cron Configuration
 CRON_MAX_RETRIES = 3
 
+# Tool System Configuration
+TOOL_WHITELIST = [
+    "date",
+    "ls",
+    "cat",
+    "echo",
+    "git status",
+    "git diff",
+    "git log",
+    "pwd",
+    "wc",
+    "head",
+    "tail",
+    "whoami",
+    "uname",
+    "df",
+]
+
+TOOL_BLACKLIST_PATTERNS = [
+    r"\brm\b",
+    r"\bsudo\b",
+    r"\bdd\b",
+    r"\bchmod\b",
+    r"\bchown\b",
+    r"\bmkfs\b",
+    r"\bmv\b",
+    r"\bcp\b",
+    r">",
+    r">>",
+    r"\|",
+    r";",
+    r"&&",
+    r"\|\|",
+    r"`",
+    r"\$\(",
+    r"\$\( ",
+    r"\bshutdown\b",
+    r"\breboot\b",
+    r"\bkill\b",
+    r"\bpkill\b",
+    r"\bdocker\b",
+    r"\bsystemctl\b",
+    r"\bapt\b",
+    r"\bbrew\b",
+    r"\bpip\b",
+    r"\bcurl\b",
+    r"\bwget\b",
+]
+
 # Session
 SESSION_KEY_INTERACTIONS = "interaction_count"
 SESSION_KEY_LEVEL = "agent_level"

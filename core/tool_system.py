@@ -1,60 +1,15 @@
-# [KAIRO] Tool System - safe command execution with whitelist/blacklist
 import json
 import os
 import re
 import subprocess
 from datetime import datetime
-from typing import Optional
+
+from core.config import TOOL_WHITELIST, TOOL_BLACKLIST_PATTERNS
 
 TOOL_LOGS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tool_logs.json")
 
-WHITELIST = [
-    r"^date\b",
-    r"^ls\b",
-    r"^cat\b",
-    r"^echo\b",
-    r"^git status\b",
-    r"^git diff\b",
-    r"^git log\b",
-    r"^pwd\b",
-    r"^wc\b",
-    r"^head\b",
-    r"^tail\b",
-    r"^whoami\b",
-    r"^uname\b",
-    r"^df\b",
-]
-
-BLACKLIST_PATTERNS = [
-    r"\brm\b",
-    r"\bsudo\b",
-    r"\bdd\b",
-    r"\bchmod\b",
-    r"\bchown\b",
-    r"\bmkfs\b",
-    r"\bmv\b",
-    r"\bcp\b",
-    r">",
-    r">>",
-    r"\|",
-    r";",
-    r"&&",
-    r"\|\|",
-    r"`",
-    r"\$\(",
-    r"\$\( ",
-    r"\bshutdown\b",
-    r"\breboot\b",
-    r"\bkill\b",
-    r"\bpkill\b",
-    r"\bdocker\b",
-    r"\bsystemctl\b",
-    r"\bapt\b",
-    r"\bbrew\b",
-    r"\bpip\b",
-    r"\bcurl\b",
-    r"\bwget\b",
-]
+WHITELIST = [rf"^{cmd}\b" for cmd in TOOL_WHITELIST]
+BLACKLIST_PATTERNS = TOOL_BLACKLIST_PATTERNS
 
 
 class ToolSystem:
