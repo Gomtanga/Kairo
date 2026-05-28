@@ -23,7 +23,11 @@ if st.session_state.success_message:
     st.success(st.session_state.success_message)
     st.session_state.success_message = None
 
-kb_manager = KBManager()
+@st.cache_resource
+def get_kb_manager():
+    return KBManager()
+
+kb_manager = get_kb_manager()
 kb_content = kb_manager.read()
 
 if "## 🔧 Skills" in kb_content:

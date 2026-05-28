@@ -28,8 +28,11 @@ class KBManager:
             raise ValueError("Cannot write empty content to KB.md")
         with KBManager._lock:
             self._backup()
-            with open(self.kb_path, "w", encoding="utf-8") as f:
-                f.write(content)
+            try:
+                with open(self.kb_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+            except OSError:
+                pass
 
     def update_section(self, section_header: str, new_content: str) -> bool:
         with KBManager._lock:
@@ -55,8 +58,11 @@ class KBManager:
                 content += f"\n\n{new_content}"
 
             self._backup()
-            with open(self.kb_path, "w", encoding="utf-8") as f:
-                f.write(content)
+            try:
+                with open(self.kb_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+            except OSError:
+                pass
             return True
 
     def append_to_section(self, section_header: str, text: str) -> bool:
@@ -78,8 +84,11 @@ class KBManager:
                 content = "\n".join(lines)
 
             self._backup()
-            with open(self.kb_path, "w", encoding="utf-8") as f:
-                f.write(content)
+            try:
+                with open(self.kb_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+            except OSError:
+                pass
             return True
 
     def add_growth_log(self, message: str) -> bool:

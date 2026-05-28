@@ -12,8 +12,11 @@ LLM_MODEL = "deepseek-v4-flash"
 
 def _load_toml() -> dict:
     if os.path.exists(ENV_PATH):
-        data = toml.load(ENV_PATH)
-        return data.get("api", {})
+        try:
+            data = toml.load(ENV_PATH)
+            return data.get("api", {})
+        except Exception:
+            return {}
     return {}
 
 
@@ -26,9 +29,12 @@ def reload_env():
 
 
 def save_env(values: dict):
-    with open(ENV_PATH, "w", encoding="utf-8") as f:
-        toml.dump({"api": values}, f)
-    reload_env()
+    try:
+        with open(ENV_PATH, "w", encoding="utf-8") as f:
+            toml.dump({"api": values}, f)
+        reload_env()
+    except OSError:
+        pass
 
 
 def read_env() -> dict:

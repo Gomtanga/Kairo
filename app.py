@@ -6,9 +6,6 @@ from datetime import datetime
 import streamlit as st
 from core import KBManager, LLMClient, LevelSystem, SkillSystem, SkillStore, KnowledgeGraph, ToolSystem, SessionManager
 
-CHAT_HISTORY_PATH = os.path.join(os.path.dirname(__file__), "chat_history.json")
-
-
 def extract_kb_updates(response: str) -> tuple[str, list[str]]:
     display = response
     updates = re.findall(r"```kb-update\n(.*?)```", response, re.DOTALL)
@@ -108,7 +105,7 @@ def render_markdown_tables(text: str):
             df = pd.DataFrame(data_rows, columns=headers)
             row_height = 35
             height = min(35 + row_height * (len(data_rows) + 1), 400)
-            st.dataframe(df, use_container_width=True, hide_index=True, height=height)
+            st.dataframe(df, width="stretch", hide_index=True, height=height)
 
 
 # [KAIRO] render tool_calls-based UI widgets
@@ -147,7 +144,7 @@ def render_tool_call_widgets(tool_calls: list[dict]):
                 df = pd.DataFrame(rows, columns=headers)
                 row_height = 35
                 height = min(35 + row_height * (len(rows) + 1), 400)
-                st.dataframe(df, use_container_width=True, hide_index=True, height=height)
+                st.dataframe(df, width="stretch", hide_index=True, height=height)
 
         elif name == "create_chart":
             has_any = True
@@ -156,7 +153,7 @@ def render_tool_call_widgets(tool_calls: list[dict]):
             chart_type = args.get("chart_type", "bar")
             chart_data = {"항목": labels, "값": values}
             if chart_type == "line":
-                st.line_chart(chart_data, x="항목", y="값", use_container_width=True)
+                st.line_chart(chart_data, x="항목", y="값", width="stretch")
             elif chart_type == "pie":
                 import pandas as pd
                 st.pyplot(
@@ -165,7 +162,7 @@ def render_tool_call_widgets(tool_calls: list[dict]):
                     ).figure
                 )
             else:
-                st.bar_chart(chart_data, x="항목", y="값", use_container_width=True)
+                st.bar_chart(chart_data, x="항목", y="값", width="stretch")
 
         elif name == "create_button":
             has_any = True
@@ -177,21 +174,18 @@ def render_tool_call_widgets(tool_calls: list[dict]):
     return has_any
 
 
-def load_chat_history() -> list[dict]:
-    if os.path.exists(CHAT_HISTORY_PATH):
-        with open(CHAT_HISTORY_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return []
-
-
-def save_chat_history(messages: list[dict]):
-    with open(CHAT_HISTORY_PATH, "w", encoding="utf-8") as f:
-        json.dump(messages, f, ensure_ascii=False, indent=2)
-
 st.set_page_config(page_title="Kairo", page_icon="🧠", layout="wide")
 
-kb = KBManager()
-llm = LLMClient()
+@st.cache_resource
+def get_kb_manager():
+    return KBManager()
+
+@st.cache_resource
+def get_llm_client():
+    return LLMClient()
+
+kb = get_kb_manager()
+llm = get_llm_client()
 
 # [KAIRO] session initialization
 if "current_session_id" not in st.session_state:
@@ -226,10 +220,17 @@ with st.sidebar:
     sessions = SessionManager.list_sessions()
     session_options = {f"{s['title']} ({s['message_count']}msg)": s["id"] for s in sessions}
     if session_options:
+        option_keys = list(session_options.keys())
+        current_id = st.session_state.current_session_id
+        current_index = 0
+        for i, key in enumerate(option_keys):
+            if session_options[key] == current_id:
+                current_index = i
+                break
         selected = st.selectbox(
             "세션 선택",
-            options=list(session_options.keys()),
-            index=0,
+            options=option_keys,
+            index=current_index,
         )
         if st.button("➕ 새 세션"):
             new_s = SessionManager.create_session()
@@ -327,7 +328,7 @@ for idx, msg in enumerate(st.session_state.messages):
                     if forked:
                         st.session_state.current_session_id = forked["id"]
                         st.session_state.messages = forked["messages"]
-                        st.rerun()
+
 
 user_input = st.chat_input("Kairo에게 메시지를 보내세요...")
 if user_input:
@@ -450,5 +451,3 @@ if user_input:
     if new_level > st.session_state.agent_level:
         st.session_state.agent_level = new_level
         st.balloons()
-
-    st.rerun()

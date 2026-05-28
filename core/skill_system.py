@@ -178,16 +178,22 @@ class SkillStore:
     @staticmethod
     def load(path: str = SKILLS_PATH) -> list[dict]:
         if os.path.exists(path):
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError):
+                pass
         defaults = SkillSystem.get_default_skills()
         SkillStore.save(defaults, path)
         return defaults
 
     @staticmethod
     def save(skills: list[dict], path: str = SKILLS_PATH) -> None:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(skills, f, ensure_ascii=False, indent=2)
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(skills, f, ensure_ascii=False, indent=2)
+        except OSError:
+            pass
 
     @staticmethod
     def add(name: str, trigger: str, action: str, description: str, path: str = SKILLS_PATH) -> list[dict]:

@@ -8,11 +8,13 @@ st.title("⏰ 크론 잡 관리")
 with st.sidebar:
     LevelSystem.render_sidebar("Cron")
 
-if "cron_manager" not in st.session_state:
-    st.session_state.cron_manager = CronManager()
-    st.session_state.cron_manager.start()
+@st.cache_resource
+def get_cron_manager():
+    mgr = CronManager()
+    mgr.start()
+    return mgr
 
-cron_manager = st.session_state.cron_manager
+cron_manager = get_cron_manager()
 
 pending = st.session_state.get("pending_crons", [])
 if pending:
@@ -33,12 +35,16 @@ if pending:
                         suggestion.get("action", suggestion["name"]),
                         suggestion.get("description", ""),
                     )
-                    st.session_state.pending_crons.pop(i)
+                    st.session_state.pending_crons = [
+                        s for j, s in enumerate(st.session_state.pending_crons) if j != i
+                    ]
                     st.success(f"'{suggestion['name']}' 크론 잡이 등록되었습니다!")
                     st.rerun()
             with ac2:
                 if st.button("❌ 거절", key=f"reject_cron_{i}"):
-                    st.session_state.pending_crons.pop(i)
+                    st.session_state.pending_crons = [
+                        s for j, s in enumerate(st.session_state.pending_crons) if j != i
+                    ]
                     st.rerun()
     st.divider()
 
