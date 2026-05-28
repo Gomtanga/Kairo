@@ -1,4 +1,5 @@
 import streamlit as st
+from typing import Optional
 from core.config import LEVEL_THRESHOLDS
 
 
@@ -51,7 +52,7 @@ class LevelSystem:
         return new_level > old_level
 
     @staticmethod
-    def set_override(level: int | None):
+    def set_override(level: Optional[int]):
         if level is None:
             st.session_state.pop("level_override", None)
         else:

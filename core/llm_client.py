@@ -11,6 +11,7 @@ from core.config import (
     LLM_RETRY_DELAY,
     LLM_MAX_TOKENS,
     LLM_TEMPERATURE,
+    TOOL_WHITELIST,
 )
 
 # [KAIRO] UI tool definitions for function calling
@@ -304,7 +305,7 @@ class LLMClient:
             "---TOOL---\n"
             "command: ls pages/\n"
             "---TOOL---\n"
-            "- 사용 가능한 명령어: date, ls, cat, echo, git status, git diff, git log, pwd, wc, head, tail, whoami, uname, df\n"
+            "- 사용 가능한 명령어: " + ", ".join(TOOL_WHITELIST) + "\n"
             "- 위험한 명령어(rm, sudo 등)는 실행할 수 없습니다.\n"
             "- 한 응답에 여러 명령어를 실행할 수 있습니다.\n"
             "- 중요: 사용자가 시스템 정보, 파일 상태, 명령어 실행을 요청하면 반드시 터미널 도구로 먼저 실행하세요. create_button으로 '확인' 버튼을 만들지 마세요.\n"
