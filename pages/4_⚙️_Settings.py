@@ -107,33 +107,16 @@ with st.expander("🔧 레벨 수동 조작", expanded=has_override):
 st.divider()
 st.subheader("📊 상태 카운터")
 
-si1, si2, si3 = st.columns(3)
-new_interactions = si1.number_input(
+new_interactions = st.number_input(
     "상호작용 횟수",
     min_value=0,
     max_value=9999,
     value=st.session_state.get("interaction_count", 0),
 )
-new_crons = si2.number_input(
-    "크론 수락 횟수",
-    min_value=0,
-    max_value=999,
-    value=st.session_state.get("crons_accepted", 0),
-)
-new_days = si3.number_input(
-    "연속 사용 일수",
-    min_value=0,
-    max_value=365,
-    value=st.session_state.get("consecutive_days", 1),
-)
 
 if st.button("카운터 저장", width="stretch"):
     st.session_state.interaction_count = new_interactions
-    st.session_state.crons_accepted = new_crons
-    st.session_state.consecutive_days = new_days
     if not has_override:
-        st.session_state.agent_level = LevelSystem.get_level(
-            new_interactions, new_crons, new_days,
-        )
+        st.session_state.agent_level = LevelSystem.get_level(new_interactions)
     st.success("카운터가 업데이트되었습니다.")
     st.rerun()

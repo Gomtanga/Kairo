@@ -203,14 +203,7 @@ if "interaction_count" not in st.session_state:
     count = kb._parse_interaction_count(kb.read())
     st.session_state.interaction_count = count
 if "agent_level" not in st.session_state:
-    interactions = st.session_state.interaction_count
-    crons = st.session_state.get("crons_accepted", 0)
-    consecutive = st.session_state.get("consecutive_days", 1)
-    st.session_state.agent_level = LevelSystem.get_level(interactions, crons, consecutive)
-if "crons_accepted" not in st.session_state:
-    st.session_state.crons_accepted = 0
-if "consecutive_days" not in st.session_state:
-    st.session_state.consecutive_days = 1
+    st.session_state.agent_level = LevelSystem.get_level(st.session_state.interaction_count)
 if "graph_discovered" not in st.session_state:
     kb_content = kb.read()
     discovered = KnowledgeGraph.discover_edges_from_kb(kb_content)
@@ -283,8 +276,6 @@ with st.sidebar:
     st.header(f"🎮 Level {current_level} - {level_name}")
     progress_data = LevelSystem.get_level_progress(
         st.session_state.interaction_count,
-        st.session_state.crons_accepted,
-        st.session_state.consecutive_days,
         current_level,
     )
     st.progress(progress_data["progress"])
@@ -472,11 +463,7 @@ if user_input:
 
     new_count = kb.increment_interaction()
     st.session_state.interaction_count = new_count
-    new_level = LevelSystem.get_level(
-        st.session_state.interaction_count,
-        st.session_state.crons_accepted,
-        st.session_state.consecutive_days,
-    )
+    new_level = LevelSystem.get_level(st.session_state.interaction_count)
     if new_level > st.session_state.agent_level:
         st.session_state.agent_level = new_level
         st.balloons()

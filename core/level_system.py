@@ -1,4 +1,3 @@
-# [KAIRO] Autonomy Level System
 import streamlit as st
 from core.config import LEVEL_THRESHOLDS
 
@@ -6,19 +5,14 @@ from core.config import LEVEL_THRESHOLDS
 class LevelSystem:
 
     @staticmethod
-    def get_level(interactions: int, crons_accepted: int, consecutive_days: int) -> int:
+    def get_level(interactions: int) -> int:
         if "level_override" in st.session_state and st.session_state.level_override is not None:
             return st.session_state.level_override
 
         level = 0
         for lvl, thresholds in sorted(LEVEL_THRESHOLDS.items()):
             if interactions >= thresholds["interactions"]:
-                if lvl <= 1 or (
-                    lvl == 2 and crons_accepted >= thresholds["crons_accepted"]
-                ) or (
-                    lvl == 3 and consecutive_days >= thresholds["consecutive_days"]
-                ):
-                    level = lvl
+                level = lvl
         return level
 
     @staticmethod
@@ -32,12 +26,12 @@ class LevelSystem:
             1: {
                 "name": "동적 크론 추천",
                 "abilities": ["기본 에이전트 3종", "수동 크론 등록", "동적 크론 추천 활성화"],
-                "next": "30회 상호작용 + 크론 3회 수락으로 Lv.2 달성",
+                "next": "30회 상호작용으로 Lv.2 달성",
             },
             2: {
                 "name": "의도 예측",
                 "abilities": ["기본 에이전트 3종", "수동/동적 크론", "사용자 의도 예측 제안"],
-                "next": "50회 상호작용 + 연속 7일 사용으로 Lv.3 달성",
+                "next": "50회 상호작용으로 Lv.3 달성",
             },
             3: {
                 "name": "선제적 액션",
@@ -64,8 +58,6 @@ class LevelSystem:
             st.session_state.level_override = level
         st.session_state.agent_level = LevelSystem.get_level(
             st.session_state.get("interaction_count", 0),
-            st.session_state.get("crons_accepted", 0),
-            st.session_state.get("consecutive_days", 1),
         )
 
     @staticmethod
@@ -73,8 +65,8 @@ class LevelSystem:
         LevelSystem.set_override(None)
 
     @staticmethod
-    def get_level_progress(interactions: int, crons_accepted: int, consecutive_days: int, current_level: int) -> dict:
-        if current_level >= 3:
+    def get_level_progress(interactions: int, current_level: int) -> dict:
+        if current_level >= 4:
             return {"progress": 1.0, "message": "최고 레벨 달성!"}
 
         next_level = current_level + 1
@@ -82,24 +74,15 @@ class LevelSystem:
         if not thresholds:
             return {"progress": 1.0, "message": "최고 레벨 달성!"}
 
-        interaction_progress = min(interactions / max(thresholds["interactions"], 1), 1.0)
-        crons_progress = min(crons_accepted / max(thresholds["crons_accepted"], 1), 1.0) if thresholds["crons_accepted"] > 0 else 1.0
-        days_progress = min(consecutive_days / max(thresholds["consecutive_days"], 1), 1.0) if thresholds["consecutive_days"] > 0 else 1.0
+        target = thresholds["interactions"]
+        progress = min(interactions / max(target, 1), 1.0)
 
-        overall = min(interaction_progress, crons_progress, days_progress)
+        if interactions >= target:
+            message = "레벨업 임박!"
+        else:
+            message = f"상호작용 {target - interactions}회 더 필요"
 
-        remaining = []
-        if interactions < thresholds["interactions"]:
-            remaining.append(f"상호작용 {thresholds['interactions'] - interactions}회 더 필요")
-        if thresholds["crons_accepted"] > 0 and crons_accepted < thresholds["crons_accepted"]:
-            remaining.append(f"크론 수락 {thresholds['crons_accepted'] - crons_accepted}회 더 필요")
-        if thresholds["consecutive_days"] > 0 and consecutive_days < thresholds["consecutive_days"]:
-            remaining.append(f"연속 사용 {thresholds['consecutive_days'] - consecutive_days}일 더 필요")
-
-        return {
-            "progress": overall,
-            "message": " | ".join(remaining) if remaining else "레벨업 임박!",
-        }
+        return {"progress": progress, "message": message}
 
     @staticmethod
     def render_sidebar(active_page: str = ""):
@@ -108,8 +91,6 @@ class LevelSystem:
         st.header(f"🎮 Level {current_level} — {info['name']}")
         progress = LevelSystem.get_level_progress(
             st.session_state.get("interaction_count", 0),
-            st.session_state.get("crons_accepted", 0),
-            st.session_state.get("consecutive_days", 1),
             current_level,
         )
         st.progress(progress["progress"])

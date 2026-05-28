@@ -56,11 +56,11 @@ SKILLS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "skills.j
 
 # Autonomy Level Thresholds
 LEVEL_THRESHOLDS = {
-    0: {"interactions": 0, "crons_accepted": 0, "consecutive_days": 0},
-    1: {"interactions": 10, "crons_accepted": 0, "consecutive_days": 0},
-    2: {"interactions": 30, "crons_accepted": 3, "consecutive_days": 0},
-    3: {"interactions": 50, "crons_accepted": 0, "consecutive_days": 7},
-    4: {"interactions": 999, "crons_accepted": 0, "consecutive_days": 999},
+    0: {"interactions": 0},
+    1: {"interactions": 10},
+    2: {"interactions": 30},
+    3: {"interactions": 50},
+    4: {"interactions": 999},
 }
 
 # Context Budget
@@ -84,5 +84,3 @@ CRON_MAX_RETRIES = 3
 SESSION_KEY_INTERACTIONS = "interaction_count"
 SESSION_KEY_LEVEL = "agent_level"
 SESSION_KEY_MESSAGES = "messages"
-SESSION_KEY_CRONS_ACCEPTED = "crons_accepted"
-SESSION_KEY_CONSECUTIVE_DAYS = "consecutive_days"
