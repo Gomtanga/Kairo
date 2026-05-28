@@ -218,6 +218,7 @@ class CronManager:
 
             self.jobs[job_id] = {
                 "type": "static",
+                "created_by": "user",
                 "cron_expr": cron_expr,
                 "task_name": task_name,
                 "task_description": task_description,
@@ -272,6 +273,7 @@ class CronManager:
 
             self.jobs[job_id] = {
                 "type": "dynamic",
+                "created_by": "kairo",
                 "cron_expr": cron_expr,
                 "task_name": task_name,
                 "task_description": task_description,
