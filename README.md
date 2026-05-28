@@ -28,8 +28,9 @@ KB.md를 통째로 넣어 처리하는 독창적인 접근법을 사용합니다
 | ⏰ **크론 시스템** | 정적/동적 크론, APScheduler 자동 실행, 채팅 알림, created_by 뱃지(👤/🤖) | ✅ |
 | 🎮 **자율주행 레벨 시스템** | Lv.0~4, Settings에서 수동 오버라이드 가능 | ✅ |
 | 🛠️ **스킬 시스템** | 트리거 키워드 기반 자동 매칭 (web-research, planner 등) | ✅ |
-| 🖥️ **터미널 도구** | 화이트리스트 기반 안전한 셸 명령어 실행 | ✅ |
+| 🖥️ **터미널 도구** | 화이트리스트 기반 안전한 셸 명령어 실행, Settings에서 설정 가능 | ✅ |
 | 🎨 **동적 UI 생성** | DeepSeek Function Calling으로 실시간 표/차트/폼 생성 | ✅ |
+| 🧠 **사고 과정 토글** | Settings에서 LLM reasoning 표시/숨김 전환 | ✅ |
 
 ---
 
@@ -104,7 +105,7 @@ streamlit run app.py
 
 | 항목 | 수치 |
 |------|:----:|
-| 토탈 PRs | **63개 머지** |
+| 토탈 PRs | **65개 머지** |
 | Open Issues | 9개 (2개 Low-priority Open) |
 | Unit Tests | 43개+ |
 | 브랜치 전략 | feature/fix 브랜치 → Squash Merge → main |
@@ -113,7 +114,7 @@ streamlit run app.py
 | 저장소 | **Public** (github.com/Gomtanga/Kairo) |
 | 개발 기간 | 1주일 (2026.05.22~28) |
 
-### 최근 업데이트 (2026.05.28, 10개 PR)
+### 최근 업데이트 (2026.05.28, 12개 PR)
 
 - #54 fix(tool-execution) — LLM이 create_button 남발하던 문제 수정
 - #55 feat(level-aware-prompts) — Lv.2 의도예측 + Lv.3 선제액션 프롬프트
@@ -125,6 +126,8 @@ streamlit run app.py
 - #61 refactor(level-interactions-only) — 레벨 단순화
 - #62 fix(cron-created-by) — 크론 created_by 뱃지 (👤/🤖)
 - #63 refactor(rename-pages) — 사이드바 이름 변경
+- #64 feat(reasoning-toggle) — Settings에서 LLM 사고 과정 토글
+- #65 refactor(tool-whitelist) — 화이트리스트 config.py 중앙 통합
 
 ---
 
