@@ -29,7 +29,7 @@ if pending:
             ac1, ac2 = st.columns(2)
             with ac1:
                 if st.button("✅ 수락", key=f"accept_cron_{i}"):
-                    cron_manager.add_static_cron(
+                    cron_manager.add_dynamic_cron(
                         suggestion["name"],
                         suggestion["cron"],
                         suggestion.get("action", suggestion["name"]),
@@ -79,11 +79,11 @@ for cron in crons:
 
         with col1:
             st.markdown(f"**{cron['id']}**")
-            badge_label = "정적" if cron["type"] == "static" else "동적"
-            badge_color = "blue" if cron["type"] == "static" else "orange"
-            st.markdown(
-                f":{badge_color}-background[:{badge_color}[{badge_label}]]"
-            )
+            creator = cron.get("created_by", "user")
+            if creator == "kairo":
+                st.markdown(":blue-background[🤖 Kairo]")
+            else:
+                st.markdown(":green-background[👤 나]")
 
         with col2:
             st.markdown(f"`{cron['cron_expr']}`")
