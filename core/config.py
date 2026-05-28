@@ -41,6 +41,8 @@ reload_env()
 KB_PATH = os.getenv("KB_PATH", os.path.join(os.path.dirname(os.path.dirname(__file__)), "kb.md"))
 KB_BACKUP_PATH = KB_PATH + ".bak"
 KB_MAX_TOKEN_RATIO = 0.80  # 80% threshold for compression
+MAX_SESSIONS = 50  # [KAIRO]
+KB_BACKUP_DIR = KB_PATH + ".backups"  # [KAIRO]
 
 # Skills Configuration
 SKILLS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "skills.json")
