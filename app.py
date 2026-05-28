@@ -174,7 +174,7 @@ def render_tool_call_widgets(tool_calls: list[dict]):
     return has_any
 
 
-st.set_page_config(page_title="Kairo", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="Chat - Kairo", page_icon="🧠", layout="wide")
 
 @st.cache_resource
 def get_kb_manager():
