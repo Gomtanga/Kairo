@@ -111,7 +111,7 @@ class LLMClient:
         agent_level: int = 0,
     ) -> dict:
         if not self.api_key:
-            return {"content": "⚠️ API 키가 설정되지 않았습니다. .env.toml 파일을 확인해주세요.", "tool_calls": []}
+            return {"content": "⚠️ API 키가 설정되지 않았습니다. .env.toml 파일을 확인해주세요.", "tool_calls": [], "reasoning": ""}
 
         system_prompt = self._build_system_prompt(kb_content, agent_level)
         full_messages = [{"role": "system", "content": system_prompt}] + messages
@@ -149,51 +149,52 @@ class LLMClient:
                         wait = LLM_RETRY_DELAY * (2 ** min(attempt, 3))
                         _time.sleep(wait)
                         continue
-                    return {"content": "❌ 서버 오류가 지속됩니다. 잠시 후 다시 시도해주세요.", "tool_calls": []}
+                    return {"content": "❌ 서버 오류가 지속됩니다. 잠시 후 다시 시도해주세요.", "tool_calls": [], "reasoning": ""}
 
                 response.raise_for_status()
                 data = response.json()
                 message = data["choices"][0]["message"]
                 content = message.get("content", "") or ""
+                reasoning = message.get("reasoning_content", "") or ""
                 tool_calls = self._parse_tool_calls(message.get("tool_calls", []))
 
                 if content or tool_calls:
-                    return {"content": content, "tool_calls": tool_calls}
+                    return {"content": content, "tool_calls": tool_calls, "reasoning": reasoning}
                 if attempt < LLM_MAX_RETRIES:
                     tokens = tokens * 2
                     continue
-                return {"content": "💭 응답을 생성하는 중 시간이 부족했습니다. 다시 시도해주세요.", "tool_calls": []}
+                return {"content": "💭 응답을 생성하는 중 시간이 부족했습니다. 다시 시도해주세요.", "tool_calls": [], "reasoning": ""}
 
             except requests.exceptions.Timeout:
                 if attempt < max_attempts - 1:
                     wait = LLM_RETRY_DELAY * (2 ** min(attempt, 3))
                     _time.sleep(wait)
                     continue
-                return {"content": "⏰ 응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.", "tool_calls": []}
+                return {"content": "⏰ 응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.", "tool_calls": [], "reasoning": ""}
 
             except requests.exceptions.ConnectionError:
                 if attempt < max_attempts - 1:
                     _time.sleep(LLM_RETRY_DELAY)
                     continue
-                return {"content": "🔌 서비스에 연결할 수 없습니다. 네트워크를 확인해주세요.", "tool_calls": []}
+                return {"content": "🔌 서비스에 연결할 수 없습니다. 네트워크를 확인해주세요.", "tool_calls": [], "reasoning": ""}
 
             except requests.exceptions.HTTPError as e:
                 if response.status_code == 401:
-                    return {"content": "🔑 API 키가 유효하지 않습니다. .env 파일을 확인해주세요.", "tool_calls": []}
+                    return {"content": "🔑 API 키가 유효하지 않습니다. .env 파일을 확인해주세요.", "tool_calls": [], "reasoning": ""}
                 if response.status_code == 429:
                     if attempt < max_attempts - 1:
                         _time.sleep(LLM_RETRY_DELAY * 4)
                         continue
-                    return {"content": "⏳ 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", "tool_calls": []}
-                return {"content": f"❌ API 오류: {e}", "tool_calls": []}
+                    return {"content": "⏳ 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", "tool_calls": [], "reasoning": ""}
+                return {"content": f"❌ API 오류: {e}", "tool_calls": [], "reasoning": ""}
 
             except (KeyError, IndexError):
-                return {"content": "❌ API 응답 형식 오류가 발생했습니다.", "tool_calls": []}
+                return {"content": "❌ API 응답 형식 오류가 발생했습니다.", "tool_calls": [], "reasoning": ""}
 
             except Exception as e:
-                return {"content": f"❌ 예상치 못한 오류: {e}", "tool_calls": []}
+                return {"content": f"❌ 예상치 못한 오류: {e}", "tool_calls": [], "reasoning": ""}
 
-        return {"content": "❌ 최대 재시도 횟수를 초과했습니다.", "tool_calls": []}
+        return {"content": "❌ 최대 재시도 횟수를 초과했습니다.", "tool_calls": [], "reasoning": ""}
 
     # [KAIRO] streaming chat (no tool support — tools only in non-streaming)
     def chat_stream(self, messages: list[dict], kb_content: str = "", temperature: float = None, max_tokens: int = None):

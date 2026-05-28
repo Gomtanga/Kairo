@@ -69,6 +69,18 @@ if st.button("API 연결 테스트", width="stretch"):
         st.success(f"연결 성공! 응답: {resp_text[:200]}")
 
 st.divider()
+st.subheader("🧠 사고 과정")
+
+show_reasoning = st.toggle(
+    "LLM 사고 과정 표시",
+    value=st.session_state.get("show_reasoning", False),
+    help="켜면 LLM 응답에 사고 과정(reasoning)을 expander로 표시합니다.",
+)
+st.session_state.show_reasoning = show_reasoning
+if show_reasoning:
+    st.caption("🧠 채팅 응답에서 사고 과정을 확인할 수 있습니다.")
+
+st.divider()
 st.subheader("🎮 레벨 시스템")
 
 current_level = st.session_state.get("agent_level", 0)
