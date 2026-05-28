@@ -1,5 +1,6 @@
 # [KAIRO] LLM Client - LLM API Client with Function Calling
 import json as _json
+import time as _time
 import requests
 from core.config import (
     LLM_API_KEY,
@@ -121,9 +122,9 @@ class LLMClient:
 
         tokens = max_tokens or LLM_MAX_TOKENS
 
-        tools_enabled = use_tools
-
-        for attempt in range(LLM_MAX_RETRIES + 1):
+        # [KAIRO] retry with exponential backoff for API instability
+        max_attempts = LLM_MAX_RETRIES + 3
+        for attempt in range(max_attempts):
             try:
                 payload = {
                     "model": self.model,
@@ -131,7 +132,7 @@ class LLMClient:
                     "temperature": temperature or LLM_TEMPERATURE,
                     "max_tokens": tokens,
                 }
-                if tools_enabled:
+                if use_tools:
                     payload["tools"] = UI_TOOLS
 
                 response = requests.post(
@@ -140,6 +141,15 @@ class LLMClient:
                     headers=headers,
                     timeout=LLM_TIMEOUT,
                 )
+
+                # [KAIRO] retry on 500
+                if response.status_code == 500:
+                    if attempt < max_attempts - 1:
+                        wait = LLM_RETRY_DELAY * (2 ** min(attempt, 3))
+                        _time.sleep(wait)
+                        continue
+                    return {"content": "❌ 서버 오류가 지속됩니다. 잠시 후 다시 시도해주세요.", "tool_calls": []}
+
                 response.raise_for_status()
                 data = response.json()
                 message = data["choices"][0]["message"]
@@ -154,23 +164,26 @@ class LLMClient:
                 return {"content": "💭 응답을 생성하는 중 시간이 부족했습니다. 다시 시도해주세요.", "tool_calls": []}
 
             except requests.exceptions.Timeout:
-                if attempt < LLM_MAX_RETRIES:
-                    import time
-                    time.sleep(LLM_RETRY_DELAY)
+                if attempt < max_attempts - 1:
+                    wait = LLM_RETRY_DELAY * (2 ** min(attempt, 3))
+                    _time.sleep(wait)
                     continue
                 return {"content": "⏰ 응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.", "tool_calls": []}
 
             except requests.exceptions.ConnectionError:
+                if attempt < max_attempts - 1:
+                    _time.sleep(LLM_RETRY_DELAY)
+                    continue
                 return {"content": "🔌 서비스에 연결할 수 없습니다. 네트워크를 확인해주세요.", "tool_calls": []}
 
             except requests.exceptions.HTTPError as e:
                 if response.status_code == 401:
                     return {"content": "🔑 API 키가 유효하지 않습니다. .env 파일을 확인해주세요.", "tool_calls": []}
                 if response.status_code == 429:
+                    if attempt < max_attempts - 1:
+                        _time.sleep(LLM_RETRY_DELAY * 4)
+                        continue
                     return {"content": "⏳ 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", "tool_calls": []}
-                if response.status_code == 500 and tools_enabled:
-                    tools_enabled = False
-                    continue
                 return {"content": f"❌ API 오류: {e}", "tool_calls": []}
 
             except (KeyError, IndexError):
