@@ -211,6 +211,19 @@ if "crons_accepted" not in st.session_state:
     st.session_state.crons_accepted = 0
 if "consecutive_days" not in st.session_state:
     st.session_state.consecutive_days = 1
+if "graph_discovered" not in st.session_state:
+    kb_content = kb.read()
+    discovered = KnowledgeGraph.discover_edges_from_kb(kb_content)
+    if discovered:
+        for edge in discovered:
+            kb_content = KnowledgeGraph.add_edge(
+                kb_content,
+                source=edge["source"],
+                target=edge["target"],
+                edge_type=edge["type"],
+            )
+        kb.write(kb_content)
+    st.session_state.graph_discovered = True
 
 with st.sidebar:
     st.title("Kairo 카이로")
