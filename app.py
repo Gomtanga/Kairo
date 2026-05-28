@@ -308,15 +308,21 @@ def save_saved_messages(messages: list[dict]):
         json.dump(messages, f, ensure_ascii=False, indent=2)
 
 
-cron_notifications = CronManager.drain_pending_notifications()
-for notif in cron_notifications:
-    task_name = notif.get("task_name", "크론 잡")
-    executed_at = notif.get("executed_at", "?")
-    llm_response = notif.get("llm_response", "")
-    response_text = llm_response.get("content", str(llm_response)) if isinstance(llm_response, dict) else str(llm_response)
-    notif_msg = f"⏰ **[{task_name}]** 실행 완료 ({executed_at})\n\n{response_text}"
-    st.session_state.messages.append({"role": "assistant", "content": notif_msg})
-    SessionManager.add_message(st.session_state.current_session_id, "assistant", notif_msg)
+@st.fragment(run_every="10s")
+def _poll_cron_notifications():
+    cron_notifications = CronManager.drain_pending_notifications()
+    if cron_notifications:
+        for notif in cron_notifications:
+            task_name = notif.get("task_name", "크론 잡")
+            executed_at = notif.get("executed_at", "?")
+            llm_response = notif.get("llm_response", "")
+            response_text = llm_response.get("content", str(llm_response)) if isinstance(llm_response, dict) else str(llm_response)
+            notif_msg = f"⏰ **[{task_name}]** 실행 완료 ({executed_at})\n\n{response_text}"
+            st.session_state.messages.append({"role": "assistant", "content": notif_msg})
+            SessionManager.add_message(st.session_state.current_session_id, "assistant", notif_msg)
+        st.rerun()
+
+_poll_cron_notifications()
 
 for idx, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):

@@ -19,7 +19,7 @@ UI_TOOLS = [
         "type": "function",
         "function": {
             "name": "create_form",
-            "description": "Create an interactive form for user input. Use when you need structured data from the user (surveys, quizzes, registrations, etc).",
+            "description": "Create an interactive form ONLY when the user explicitly asks to create a form, survey, or quiz. Do NOT use for information queries, fact-checking, or system commands.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -79,7 +79,7 @@ UI_TOOLS = [
         "type": "function",
         "function": {
             "name": "create_button",
-            "description": "Create an interactive button. Use when offering a quick action like 'submit', 'run script', 'show answer'.",
+            "description": "Create an interactive button ONLY for explicit UI actions like 'submit', 'run script', 'show answer'. Do NOT use for information queries or system checks — use TOOL commands instead.",
             "parameters": {
                 "type": "object",
                 "properties": {
