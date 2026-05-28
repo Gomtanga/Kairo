@@ -115,6 +115,16 @@ class KnowledgeGraph:
             "leads_to": "#ef4444",
         }
 
+        import re as _re
+        _node_id_map = {}
+        _counter = 0
+        def _safe_id(name: str) -> str:
+            nonlocal _counter
+            if name not in _node_id_map:
+                _counter += 1
+                _node_id_map[name] = f"n{_counter}"
+            return _node_id_map[name]
+
         lines = ["digraph KnowledgeGraph {"]
         lines.append("    rankdir=LR;")
         lines.append('    node [shape=box, style="rounded,filled", fillcolor="#f0f0f0", fontname="sans-serif"];')
@@ -126,12 +136,11 @@ class KnowledgeGraph:
             nodes.add(edge.get("target", "?"))
 
         for node in sorted(nodes):
-            safe_id = node.replace(" ", "_").replace("-", "_")
-            lines.append(f'    {safe_id} [label="{node}"];')
+            lines.append(f'    {_safe_id(node)} [label="{node}"];')
 
         for edge in edges:
-            source = edge.get("source", "?").replace(" ", "_").replace("-", "_")
-            target = edge.get("target", "?").replace(" ", "_").replace("-", "_")
+            source = _safe_id(edge.get("source", "?"))
+            target = _safe_id(edge.get("target", "?"))
             edge_type = edge.get("type", "related_to")
             color = edge_colors.get(edge_type, "#6366f1")
             lines.append(f'    {source} -> {target} [label="{edge_type}", color="{color}", fontcolor="{color}"];')
