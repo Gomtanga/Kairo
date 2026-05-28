@@ -67,3 +67,73 @@ if st.button("API 연결 테스트", width="stretch"):
         st.error(resp_text)
     else:
         st.success(f"연결 성공! 응답: {resp_text[:200]}")
+
+st.divider()
+st.subheader("🎮 레벨 시스템")
+
+current_level = st.session_state.get("agent_level", 0)
+level_info = LevelSystem.get_level_info(current_level)
+has_override = "level_override" in st.session_state and st.session_state.level_override is not None
+
+col1, col2, col3 = st.columns(3)
+col1.metric("현재 레벨", f"Lv.{current_level}")
+col2.metric("레벨명", level_info["name"])
+col3.metric("수동 설정", "ON" if has_override else "OFF")
+
+with st.expander("🔧 레벨 수동 조작", expanded=has_override):
+    st.caption(
+        "자동 레벨업이 정상 동작하지 않을 때 수동으로 레벨을 설정할 수 있습니다. "
+        "수동 설정 시 자동 레벨업이 비활성화됩니다."
+    )
+
+    override_level = st.selectbox(
+        "레벨 선택",
+        options=[0, 1, 2, 3, 4],
+        format_func=lambda l: f"Lv.{l} — {LevelSystem.get_level_info(l)['name']}",
+        index=st.session_state.get("level_override", current_level) if has_override else current_level,
+    )
+
+    bc1, bc2 = st.columns(2)
+    if bc1.button("적용", use_container_width=True, type="primary"):
+        LevelSystem.set_override(override_level)
+        st.success(f"Lv.{override_level}으로 수동 설정되었습니다.")
+        st.rerun()
+
+    if bc2.button("자동으로 복원", use_container_width=True, disabled=not has_override):
+        LevelSystem.clear_override()
+        st.success("자동 레벨 시스템으로 복원되었습니다.")
+        st.rerun()
+
+st.divider()
+st.subheader("📊 상태 카운터")
+
+si1, si2, si3 = st.columns(3)
+new_interactions = si1.number_input(
+    "상호작용 횟수",
+    min_value=0,
+    max_value=9999,
+    value=st.session_state.get("interaction_count", 0),
+)
+new_crons = si2.number_input(
+    "크론 수락 횟수",
+    min_value=0,
+    max_value=999,
+    value=st.session_state.get("crons_accepted", 0),
+)
+new_days = si3.number_input(
+    "연속 사용 일수",
+    min_value=0,
+    max_value=365,
+    value=st.session_state.get("consecutive_days", 1),
+)
+
+if st.button("카운터 저장", width="stretch"):
+    st.session_state.interaction_count = new_interactions
+    st.session_state.crons_accepted = new_crons
+    st.session_state.consecutive_days = new_days
+    if not has_override:
+        st.session_state.agent_level = LevelSystem.get_level(
+            new_interactions, new_crons, new_days,
+        )
+    st.success("카운터가 업데이트되었습니다.")
+    st.rerun()
