@@ -7,7 +7,7 @@
 
 ## 개요
 
-Kairo는 하나의 마크다운 파일(`KB.md`)로 모든 지식을 관리하는 개인 에이전트 시스템입니다.
+Kairo는 하나의 마크다운 파일(`KB.md`)로 모든 지식을 관리하는 개인 AI 에이전트 시스템입니다.
 RAG(임베딩/벡터DB/청킹) 없이, DeepSeek V4 Flash의 1M 컨텍스트 윈도우에
 KB.md를 통째로 넣어 처리하는 독창적인 접근법을 사용합니다.
 
@@ -18,96 +18,115 @@ KB.md를 통째로 넣어 처리하는 독창적인 접근법을 사용합니다
 
 ---
 
+## 주요 기능
+
+| 기능 | 설명 | 상태 |
+|------|------|:----:|
+| 💬 **채팅 인터페이스** | 멀티세션, 포크, 자동 제목 생성 | ✅ |
+| 📝 **KB.md 기반 지식 관리** | 단일 파일로 User Profile, Projects, Skills 통합 관리 | ✅ |
+| 🧩 **지식 그래프 자동발견 + 시각화** | 기존 KB.md 스캔 + 채팅 중 관계 추출 → `st.graphviz_chart()` 시각화 | ✅ |
+| ⏰ **크론 시스템** | 정적/동적 크론, APScheduler 자동 실행, 채팅 알림, created_by 뱃지(👤/🤖) | ✅ |
+| 🎮 **자율주행 레벨 시스템** | Lv.0~4, Settings에서 수동 오버라이드 가능 | ✅ |
+| 🛠️ **스킬 시스템** | 트리거 키워드 기반 자동 매칭 (web-research, planner 등) | ✅ |
+| 🖥️ **터미널 도구** | 화이트리스트 기반 안전한 셸 명령어 실행 | ✅ |
+| 🎨 **동적 UI 생성** | DeepSeek Function Calling으로 실시간 표/차트/폼 생성 | ✅ |
+
+---
+
 ## 아키텍처
 
 ```
-사용자 ←→ Streamlit UI
+사용자 ←→ Streamlit UI (WebSocket)
                 ↓
-        Kairo Agent (LLM)
-        DeepSeek V4 Flash
-         1M context window
-         Custom LLM Endpoint
+        Kairo Agent (LLM Inference)
+        - KB.md (전체 내용)
+        - Skills 목록
+        - Level 정보
                 ↓
-        KB.md (Knowledge Base)
-        - User Profile
-        - Project Knowledge
-        - Skills 정의
-        - Knowledge Graph
-        - Growth Log
+    ┌───────┬──────┬──────┬──────┐
+    ▼       ▼      ▼      ▼      ▼
+  KB.md   Skills  Cron   Tools Sessions
+  저장     매칭    스케줄  실행   관리
+
+LLM 응답 처리:
+  ├─ kb-update → KB.md 자동 업데이트
+  ├─ kb-cron   → 크론 추천 / 등록
+  ├─ kb-graph  → 지식 관계 저장
+  └─ TOOL      → 터미널 명령어 실행
 ```
 
-### 왜 RAG를 안 쓰는가?
-| 항목 | RAG 방식 | Kairo 방식 |
-|------|:--------:|:----------:|
-| 구축 시간 | 2~3일 | 몇 시간 |
-| 임베딩/벡터DB | 필요 | ❌ **불필요** |
-| 유지보수 | 복잡 | ✅ **KB.md 하나만 관리** |
-| LLM 활용 | 검색 + 생성 | ✅ **전체 지식 + 추론** |
-
 ---
 
-## 주요 기능
-
-| 기능 | 설명 |
-|------|------|
-| **📝 KB.md 기반 지식 관리** | 하나의 마크다운 파일에 모든 지식 저장 |
-| **🧠 DeepSeek V4 Flash 연동** | 1M context, 초저비용 API 호출 |
-| **🎮 자율주행 레벨 시스템** | 상호작용 쌓이면 레벨업 |
-| **🔧 스킬 시스템** | 마이크로스킬 + 빅스킬 계층 구조 |
-| **⏰ 동적 크론 잡** (MVP 이후) | 사용자 패턴 기반 자동 작업 생성 |
-| **🔗 지식 자율 결합** | LLM이 지식 간 관계 발견 |
-
----
-
-## 기술 스택
-
-- **Frontend**: Streamlit
-- **LLM**: DeepSeek V4 Flash (Custom endpoint URL)
-- **지식 저장**: KB.md (단일 마크다운 파일)
-- **스케줄링**: APScheduler
-- **배포**: Streamlit Community Cloud
-
----
-
-## 사용 오픈소스
+## 오픈소스 스택
 
 | 오픈소스 | 라이선스 | 활용 |
 |----------|---------|------|
-| Streamlit | Apache 2.0 | 웹 UI |
-| APScheduler | MIT | 동적 크론 |
-| python-dotenv | BSD | 환경변수 |
-| Karpathy's LLM Wiki | (참고) | 지식파일 철학 |
-| Hermes Agent | (참고) | 자율주행 개념 |
+| [Streamlit](https://streamlit.io) | Apache 2.0 | 웹 UI (채팅, 시각화, 그래프) |
+| [DeepSeek V4 Flash](https://github.com/deepseek-ai/DeepSeek-V4) | MIT | LLM 추론, Function Calling |
+| [APScheduler](https://github.com/agronholm/apscheduler) | MIT / Apache 2.0 | 크론 스케줄링 |
+| [RapidFuzz](https://github.com/maxbachmann/RapidFuzz) | MIT | 퍼지 문자열 매칭 |
+| [Kiwi](https://github.com/bab2min/kiwipiepy) | LGPL | 한국어 형태소 분석 |
 
 ---
 
 ## 시작하기
 
-> 🚧 **현재 MVP 개발 중입니다.** 아래는 계획된 실행 구조입니다.
-
 ```bash
+# 1. 클론
 git clone https://github.com/Gomtanga/Kairo.git
 cd Kairo
 
-# 의존성 설치 (MVP 완성 시)
-pip install streamlit apscheduler python-dotenv requests
+# 2. 의존성 설치
+pip install streamlit apscheduler python-dotenv requests rapidfuzz kiwipiepy
 
-# 환경변수 설정
-echo "LLM_API_KEY=your_key" > .env
+# 3. 환경변수 설정
+cat > .env.toml << 'EOF'
+[api]
+LLM_API_KEY = "your-api-key"
+LLM_BASE_URL = "https://your-endpoint.com/v1"
+LLM_MODEL = "deepseek-v4-flash"
+EOF
 
-# 실행 (MVP 완성 시)
+# 4. 실행
 streamlit run app.py
 ```
 
 ---
 
+## GitHub 협업 현황
+
+| 항목 | 수치 |
+|------|:----:|
+| 토탈 PRs | **63개 머지** |
+| Open Issues | 9개 (2개 Low-priority Open) |
+| Unit Tests | 43개+ |
+| 브랜치 전략 | feature/fix 브랜치 → Squash Merge → main |
+| 이슈 관리 | GitHub Projects 칸반 (Todo → In Progress → Done) |
+| 문서화 | GitHub Wiki 10페이지 |
+| 저장소 | **Public** (github.com/Gomtanga/Kairo) |
+| 개발 기간 | 1주일 (2026.05.22~28) |
+
+### 최근 업데이트 (2026.05.28, 10개 PR)
+
+- #54 fix(tool-execution) — LLM이 create_button 남발하던 문제 수정
+- #55 feat(level-aware-prompts) — Lv.2 의도예측 + Lv.3 선제액션 프롬프트
+- #56 feat(cron-notifications) — 크론 실행 결과 채팅 전달
+- #57 fix(three-hotfixes) — 그래프 특수문자 + 툴 우선순위 + 크론 폴링
+- #58 feat(auto-discover-graph) — KB.md 기반 지식 그래프 자동 발견
+- #59 fix(remove-noise-edges) — 의미 없는 섹션 간 엣지 제거
+- #60 feat(level-override) — Settings 수동 레벨 조작
+- #61 refactor(level-interactions-only) — 레벨 단순화
+- #62 fix(cron-created-by) — 크론 created_by 뱃지 (👤/🤖)
+- #63 refactor(rename-pages) — 사이드바 이름 변경
+
+---
+
 ## 팀
 
-| 역할           | 이름              |
-| ------------ | --------------- |
-| 팀장 / 에이전트 엔진 | Park Geon Young |
-| 프론트엔드 / 문서화  | Park Geon Young |
-| 데이터 / 발표     | (팀원)            |
+| 역할 | 이름 | 주요 기여 |
+|------|------|---------|
+| 팀장 / 에이전트 엔진 | **박건영** | 60+ PRs, 아키텍처, 지식그래프, 레벨시스템 |
+| 팀원 / 품질 관리 | **오충만** | PR #42 Growth Log 정리, Git 충돌 해결 |
 
 ---
 
