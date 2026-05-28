@@ -176,18 +176,6 @@ class KnowledgeGraph:
 
         new_edges = []
 
-        for i in range(len(relevant)):
-            for j in range(i + 1, len(relevant)):
-                s1, s2 = relevant[i], relevant[j]
-                pair = (s1["name"], s2["name"], "related_to")
-                if pair not in existing_pairs:
-                    new_edges.append({
-                        "source": s1["name"],
-                        "target": s2["name"],
-                        "type": "related_to",
-                    })
-                    existing_pairs.add(pair)
-
         for sec in relevant:
             keywords = set()
             for m in re.finditer(r"`([^`]+)`", sec["content"]):
