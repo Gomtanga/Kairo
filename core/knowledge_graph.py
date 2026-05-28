@@ -47,6 +47,9 @@ class KnowledgeGraph:
     def add_edge(kb_content: str, source: str, target: str, edge_type: str, edge_name: Optional[str] = None) -> str:
         if not edge_name:
             edge_name = f"{source} → {target}"
+        # [KAIRO] dedup check
+        if f"### Edge: {edge_name}" in kb_content:
+            return kb_content
 
         timestamp = datetime.now().strftime("%Y-%m-%d")
         edge_block = (
@@ -69,26 +72,22 @@ class KnowledgeGraph:
         return kb_content
 
     @staticmethod
-    def remove_edge(kb_content: str, edge_name: str) -> str:
+    def remove_edge(kb_content: str, edge_name: str) -> str:  # [KAIRO] fixed unreachable code
         lines = kb_content.split("\n")
         result = []
         skip = False
-        i = 0
 
-        while i < len(lines):
-            stripped = lines[i].strip()
+        for line in lines:
+            stripped = line.strip()
             if stripped == f"### Edge: {edge_name}":
                 skip = True
-                i += 1
                 continue
-                if skip:
-                    if stripped.startswith("### ") or stripped.startswith("## "):
-                        skip = False
-                        result.append(lines[i])
-                    i += 1
+            if skip:
+                if stripped.startswith("### ") or stripped.startswith("## "):
+                    skip = False
+                    result.append(line)
                 continue
-            result.append(lines[i])
-            i += 1
+            result.append(line)
 
         return "\n".join(result)
 

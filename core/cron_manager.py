@@ -7,6 +7,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from core.config import CRON_MAX_RETRIES
+import logging
+
+logger = logging.getLogger(__name__)
 
 CRON_JOBS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cron_jobs.json")
 CRON_RESULTS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cron_results.json")
@@ -29,30 +32,31 @@ class CronManager:
                     data = json.load(f)
                 for job_id, meta in data.items():
                     self.jobs[job_id] = meta
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to load cron jobs: %s", e)  # [KAIRO]
 
     def _save_jobs(self):
         try:
             with open(CRON_JOBS_PATH, "w", encoding="utf-8") as f:
                 json.dump(self.jobs, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to save cron jobs: %s", e)  # [KAIRO]
 
     def _load_results(self):
         if os.path.exists(CRON_RESULTS_PATH):
             try:
                 with open(CRON_RESULTS_PATH, "r", encoding="utf-8") as f:
                     self.results = json.load(f)
-            except Exception:
+            except Exception as e:
+                logger.warning("Failed to load cron results: %s", e)  # [KAIRO]
                 self.results = {}
 
     def _save_results(self):
         try:
             with open(CRON_RESULTS_PATH, "w", encoding="utf-8") as f:
                 json.dump(self.results, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to save cron results: %s", e)  # [KAIRO]
 
     def get_result(self, job_id: str) -> Optional[dict]:
         return self.results.get(job_id)
@@ -127,8 +131,8 @@ class CronManager:
                     max_instances=1,
                     misfire_grace_time=60,
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to restore scheduled job %s: %s", job_id, e)  # [KAIRO]
 
     def stop(self):
         if self._started:
@@ -247,8 +251,8 @@ class CronManager:
         if job_id in self.jobs:
             try:
                 self.scheduler.remove_job(job_id)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to remove scheduled job %s: %s", job_id, e)  # [KAIRO]
             del self.jobs[job_id]
             self._save_jobs()
             return True
@@ -258,8 +262,8 @@ class CronManager:
         if job_id in self.jobs:
             try:
                 self.scheduler.pause_job(job_id)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to pause scheduled job %s: %s", job_id, e)  # [KAIRO]
             self.jobs[job_id]["status"] = "paused"
             self._save_jobs()
             return True
@@ -269,8 +273,8 @@ class CronManager:
         if job_id in self.jobs:
             try:
                 self.scheduler.resume_job(job_id)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to resume scheduled job %s: %s", job_id, e)  # [KAIRO]
             self.jobs[job_id]["status"] = "active"
             self._save_jobs()
             return True

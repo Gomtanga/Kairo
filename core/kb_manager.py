@@ -5,7 +5,7 @@ import shutil
 from datetime import datetime
 from typing import Optional
 
-from core.config import KB_PATH, KB_BACKUP_PATH, KB_MAX_TOKEN_RATIO
+from core.config import KB_PATH, KB_BACKUP_PATH, KB_BACKUP_DIR, KB_MAX_TOKEN_RATIO  # [KAIRO]
 
 
 class KBManager:
@@ -24,6 +24,8 @@ class KBManager:
             return f.read()
 
     def write(self, content: str) -> None:
+        if not content or not content.strip():  # [KAIRO]
+            raise ValueError("Cannot write empty content to KB.md")
         with KBManager._lock:
             self._backup()
             with open(self.kb_path, "w", encoding="utf-8") as f:
@@ -119,7 +121,10 @@ class KBManager:
 
     def _backup(self) -> None:
         if os.path.exists(self.kb_path):
-            shutil.copy2(self.kb_path, self.backup_path)
+            os.makedirs(KB_BACKUP_DIR, exist_ok=True)  # [KAIRO]
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_file = os.path.join(KB_BACKUP_DIR, f"kb_{timestamp}.md.bak")
+            shutil.copy2(self.kb_path, backup_file)  # [KAIRO]
 
     def _create_template(self) -> None:
         template = f"""# Kairo Knowledge Base

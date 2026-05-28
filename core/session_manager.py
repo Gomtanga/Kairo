@@ -4,6 +4,8 @@ import os
 import shutil
 from datetime import datetime
 
+from core.config import MAX_SESSIONS  # [KAIRO]
+
 SESSIONS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sessions")
 
 
@@ -25,6 +27,7 @@ class SessionManager:
             "messages": [],
         }
         SessionManager._save(session)
+        SessionManager._cleanup_old_sessions()  # [KAIRO]
         return session
 
     @staticmethod
@@ -42,6 +45,15 @@ class SessionManager:
         path = os.path.join(SESSIONS_DIR, f"{session['id']}.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(session, f, ensure_ascii=False, indent=2)
+
+    @staticmethod
+    def _cleanup_old_sessions():  # [KAIRO]
+        SessionManager._ensure_dir()
+        sessions = SessionManager.list_sessions()
+        if len(sessions) > MAX_SESSIONS:
+            to_delete = sessions[MAX_SESSIONS:]
+            for s in to_delete:
+                SessionManager.delete_session(s["id"])
 
     @staticmethod
     def list_sessions() -> list[dict]:
