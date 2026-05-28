@@ -121,6 +121,8 @@ class LLMClient:
 
         tokens = max_tokens or LLM_MAX_TOKENS
 
+        tools_enabled = use_tools
+
         for attempt in range(LLM_MAX_RETRIES + 1):
             try:
                 payload = {
@@ -129,7 +131,7 @@ class LLMClient:
                     "temperature": temperature or LLM_TEMPERATURE,
                     "max_tokens": tokens,
                 }
-                if use_tools:
+                if tools_enabled:
                     payload["tools"] = UI_TOOLS
 
                 response = requests.post(
@@ -166,6 +168,9 @@ class LLMClient:
                     return {"content": "🔑 API 키가 유효하지 않습니다. .env 파일을 확인해주세요.", "tool_calls": []}
                 if response.status_code == 429:
                     return {"content": "⏳ 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", "tool_calls": []}
+                if response.status_code == 500 and tools_enabled:
+                    tools_enabled = False
+                    continue
                 return {"content": f"❌ API 오류: {e}", "tool_calls": []}
 
             except (KeyError, IndexError):
