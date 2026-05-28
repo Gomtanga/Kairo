@@ -357,7 +357,7 @@ if user_input:
 
         # [KAIRO] function calling for UI tools + streaming fallback
         with st.spinner("💭 생각 중..."):
-            result = llm.chat(chat_messages, kb_content=full_context, use_tools=True)
+            result = llm.chat(chat_messages, kb_content=full_context, use_tools=True, agent_level=st.session_state.agent_level)
         streamed_text = result.get("content", "")
         tool_calls = result.get("tool_calls", [])
         clean_display = re.sub(r"---TOOL---[\s\S]*?(?:---TOOL---|$)", "", streamed_text).strip()
