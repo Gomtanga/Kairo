@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 CRON_JOBS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cron_jobs.json")
 CRON_RESULTS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cron_results.json")
+CRON_NOTIFICATIONS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cron_notifications.json")
 
 
 class CronManager:
@@ -60,6 +61,43 @@ class CronManager:
     def get_result(self, job_id: str) -> Optional[dict]:
         return self.results.get(job_id)
 
+    def _enqueue_notification(self, result: dict) -> None:
+        try:
+            notifications = []
+            if os.path.exists(CRON_NOTIFICATIONS_PATH):
+                with open(CRON_NOTIFICATIONS_PATH, "r", encoding="utf-8") as f:
+                    notifications = json.load(f)
+            notifications.append(result)
+            with open(CRON_NOTIFICATIONS_PATH, "w", encoding="utf-8") as f:
+                json.dump(notifications, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    def drain_notifications(self) -> list[dict]:
+        if not os.path.exists(CRON_NOTIFICATIONS_PATH):
+            return []
+        try:
+            with open(CRON_NOTIFICATIONS_PATH, "r", encoding="utf-8") as f:
+                notifications = json.load(f)
+            with open(CRON_NOTIFICATIONS_PATH, "w", encoding="utf-8") as f:
+                json.dump([], f)
+            return notifications
+        except Exception:
+            return []
+
+    @staticmethod
+    def drain_pending_notifications() -> list[dict]:
+        if not os.path.exists(CRON_NOTIFICATIONS_PATH):
+            return []
+        try:
+            with open(CRON_NOTIFICATIONS_PATH, "r", encoding="utf-8") as f:
+                notifications = json.load(f)
+            with open(CRON_NOTIFICATIONS_PATH, "w", encoding="utf-8") as f:
+                json.dump([], f)
+            return notifications
+        except Exception:
+            return []
+
     def execute_job(self, job_id: str) -> dict:
         if job_id not in self.jobs:
             return {"status": "error", "message": f"잡 '{job_id}'을 찾을 수 없습니다."}
@@ -97,6 +135,7 @@ class CronManager:
 
         self.results[job_id] = result
         self._save_results()
+        self._enqueue_notification(result)
         return result
 
     def start(self):

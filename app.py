@@ -4,7 +4,7 @@ import os
 import re
 from datetime import datetime
 import streamlit as st
-from core import KBManager, LLMClient, LevelSystem, SkillSystem, SkillStore, KnowledgeGraph, ToolSystem, SessionManager
+from core import KBManager, LLMClient, LevelSystem, SkillSystem, SkillStore, KnowledgeGraph, ToolSystem, SessionManager, CronManager
 
 def extract_kb_updates(response: str) -> tuple[str, list[str]]:
     display = response
@@ -307,6 +307,16 @@ def save_saved_messages(messages: list[dict]):
     with open(SAVED_MESSAGES_PATH, "w", encoding="utf-8") as f:
         json.dump(messages, f, ensure_ascii=False, indent=2)
 
+
+cron_notifications = CronManager.drain_pending_notifications()
+for notif in cron_notifications:
+    task_name = notif.get("task_name", "크론 잡")
+    executed_at = notif.get("executed_at", "?")
+    llm_response = notif.get("llm_response", "")
+    response_text = llm_response.get("content", str(llm_response)) if isinstance(llm_response, dict) else str(llm_response)
+    notif_msg = f"⏰ **[{task_name}]** 실행 완료 ({executed_at})\n\n{response_text}"
+    st.session_state.messages.append({"role": "assistant", "content": notif_msg})
+    SessionManager.add_message(st.session_state.current_session_id, "assistant", notif_msg)
 
 for idx, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
