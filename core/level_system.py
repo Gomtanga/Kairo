@@ -7,6 +7,9 @@ class LevelSystem:
 
     @staticmethod
     def get_level(interactions: int, crons_accepted: int, consecutive_days: int) -> int:
+        if "level_override" in st.session_state and st.session_state.level_override is not None:
+            return st.session_state.level_override
+
         level = 0
         for lvl, thresholds in sorted(LEVEL_THRESHOLDS.items()):
             if interactions >= thresholds["interactions"]:
@@ -52,6 +55,22 @@ class LevelSystem:
     @staticmethod
     def check_level_up(old_level: int, new_level: int) -> bool:
         return new_level > old_level
+
+    @staticmethod
+    def set_override(level: int | None):
+        if level is None:
+            st.session_state.pop("level_override", None)
+        else:
+            st.session_state.level_override = level
+        st.session_state.agent_level = LevelSystem.get_level(
+            st.session_state.get("interaction_count", 0),
+            st.session_state.get("crons_accepted", 0),
+            st.session_state.get("consecutive_days", 1),
+        )
+
+    @staticmethod
+    def clear_override():
+        LevelSystem.set_override(None)
 
     @staticmethod
     def get_level_progress(interactions: int, crons_accepted: int, consecutive_days: int, current_level: int) -> dict:
