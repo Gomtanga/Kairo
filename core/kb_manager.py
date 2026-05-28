@@ -1,11 +1,12 @@
 # [KAIRO] KB Manager - Read, write, update KB.md
 import os
+import re
 import threading
 import shutil
 from datetime import datetime
 from typing import Optional
 
-from core.config import KB_PATH, KB_BACKUP_PATH, KB_BACKUP_DIR, KB_MAX_TOKEN_RATIO  # [KAIRO]
+from core.config import KB_PATH, KB_BACKUP_PATH, KB_BACKUP_DIR, KB_MAX_TOKEN_RATIO, KB_MAX_INTERACTION_LOGS  # [KAIRO]
 
 
 class KBManager:
@@ -111,7 +112,36 @@ class KBManager:
             content += f"\n\n## 📊 Growth Log{log_entry}\n"
             self.write(content)
 
+        self._trim_growth_log()
         return new_count
+
+    def _trim_growth_log(self) -> None:
+        """Remove oldest interaction entries if count exceeds limit."""
+        content = self.read()
+        lines = content.split("\n")
+
+        # Find the Growth Log section
+        section_start = None
+        for i, line in enumerate(lines):
+            if line.strip() == "## 📊 Growth Log":
+                section_start = i
+                break
+        if section_start is None:
+            return
+
+        # Collect line indices where Interaction entries begin
+        entry_indices = []
+        for i in range(section_start + 1, len(lines)):
+            if re.match(r"^### Interaction \d+", lines[i].strip()):
+                entry_indices.append(i)
+
+        if len(entry_indices) <= KB_MAX_INTERACTION_LOGS:
+            return
+
+        # Remove the oldest entries (first ones in the section)
+        remove_count = len(entry_indices) - KB_MAX_INTERACTION_LOGS
+        new_lines = lines[:entry_indices[0]] + lines[entry_indices[remove_count]:]
+        self.write("\n".join(new_lines))
 
     def estimate_tokens(self, content: Optional[str] = None) -> int:
         if content is None:
@@ -158,7 +188,6 @@ class KBManager:
 
     @staticmethod
     def _parse_interaction_count(content: str) -> int:
-        import re
         matches = re.findall(r"### Interaction (\d+)", content)
         if matches:
             return max(int(m) for m in matches)
