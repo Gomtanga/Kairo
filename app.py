@@ -91,6 +91,26 @@ def execute_tool_loop(llm_client, chat_messages, kb_content, raw_response, max_r
     return current_response, all_tool_results
 
 
+# [KAIRO] parse markdown tables from text and render as st.dataframe
+def render_markdown_tables(text: str):
+    import pandas as pd
+    table_pattern = re.compile(r'^\|.+\|$\n^\|[-:\s|]+\|$\n((?:^\|.+\|$\n?)+)', re.MULTILINE)
+    for match in table_pattern.finditer(text):
+        rows = [line.strip() for line in match.group(0).strip().split('\n') if line.strip()]
+        if len(rows) < 3:
+            continue
+        headers = [c.strip() for c in rows[0].split('|') if c.strip()]
+        data_rows = []
+        for row in rows[2:]:
+            cells = [c.strip() for c in row.split('|') if c.strip()]
+            data_rows.append(cells)
+        if headers and data_rows:
+            df = pd.DataFrame(data_rows, columns=headers)
+            row_height = 35
+            height = min(35 + row_height * (len(data_rows) + 1), 400)
+            st.dataframe(df, use_container_width=True, hide_index=True, height=height)
+
+
 # [KAIRO] render tool_calls-based UI widgets
 def render_tool_call_widgets(tool_calls: list[dict]):
     has_any = False
@@ -123,11 +143,11 @@ def render_tool_call_widgets(tool_calls: list[dict]):
             headers = args.get("headers", [])
             rows = args.get("rows", [])
             if headers and rows:
-                st.dataframe(
-                    data={h: [r[i] if i < len(r) else "" for r in rows] for i, h in enumerate(headers)},
-                    use_container_width=True,
-                    hide_index=True,
-                )
+                import pandas as pd
+                df = pd.DataFrame(rows, columns=headers)
+                row_height = 35
+                height = min(35 + row_height * (len(rows) + 1), 400)
+                st.dataframe(df, use_container_width=True, hide_index=True, height=height)
 
         elif name == "create_chart":
             has_any = True
@@ -290,6 +310,9 @@ def save_saved_messages(messages: list[dict]):
 for idx, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
+        # [KAIRO] render stored tool_calls on replay
+        if msg["role"] == "assistant" and msg.get("tool_calls"):
+            render_tool_call_widgets(msg["tool_calls"])
         if msg["role"] == "assistant" and idx > 0:
             col_save, col_fork = st.columns([1, 1])
             with col_save:
@@ -342,6 +365,12 @@ if user_input:
             st.markdown(clean_display)
         raw_response = streamed_text
 
+        # [KAIRO] render UI from tool_calls (must be inside chat_message)
+        if tool_calls:
+            render_tool_call_widgets(tool_calls)
+        elif clean_display and '|' in clean_display:
+            render_markdown_tables(clean_display)
+
     # [KAIRO] TOOL execution loop
     tool_commands = extract_tool_commands(raw_response)
     if tool_commands:
@@ -367,14 +396,18 @@ if user_input:
     display_response = re.sub(r"---TOOL---[\s\S]*?(?:---TOOL---|$)", "", display_response).strip()
 
     if not display_response.strip():
-        display_response = final_response
+        # [KAIRO] fallback: use tool_calls title as display text when content is empty
+        if tool_calls:
+            display_response = "📊 " + tool_calls[0].get("arguments", {}).get("title", "결과를 생성했습니다")
+        else:
+            display_response = final_response
 
-    # [KAIRO] render UI from tool_calls
+    # [KAIRO] persist tool_calls with message for replay on rerun
+    msg_data = {"role": "assistant", "content": display_response if display_response.strip() else final_response}
     if tool_calls:
-        render_tool_call_widgets(tool_calls)
-
-    st.session_state.messages.append({"role": "assistant", "content": display_response if display_response.strip() else final_response})
-    SessionManager.add_message(st.session_state.current_session_id, "assistant", display_response if display_response.strip() else final_response)
+        msg_data["tool_calls"] = tool_calls
+    st.session_state.messages.append(msg_data)
+    SessionManager.add_message(st.session_state.current_session_id, "assistant", msg_data["content"])
 
     if updates:
         current_kb = kb.read()
