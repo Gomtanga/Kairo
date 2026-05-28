@@ -6,7 +6,6 @@ from typing import Optional, Callable
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
-from core.config import CRON_MAX_RETRIES
 import logging
 
 logger = logging.getLogger(__name__)

@@ -12,12 +12,18 @@ def strip_html_comments(text: str) -> str:
 st.set_page_config(page_title="KB.md - Kairo", page_icon="📚", layout="wide")
 st.title("📚 Knowledge Base")
 
-kb = KBManager()
+@st.cache_resource
+def get_kb_manager():
+    return KBManager()
+
+kb = get_kb_manager()
+
+# Read KB content once per page load
+kb_content = kb.read()
 
 with st.sidebar:
     LevelSystem.render_sidebar("KB")
     with st.expander("📊 KB 통계", expanded=True):
-        kb_content = kb.read()
         file_size = os.path.getsize(kb.kb_path)
         st.write(f"**파일 크기:** {file_size / 1024:.1f} KB")
         st.write(f"**예상 토큰:** {kb.estimate_tokens()} tokens")
@@ -29,7 +35,6 @@ with st.sidebar:
 viewer_tab, editor_tab = st.tabs(["뷰어", "편집기"])
 
 with viewer_tab:
-    kb_content = kb.read()
     with st.container():
         st.markdown(strip_html_comments(kb_content))
 
@@ -43,19 +48,18 @@ with viewer_tab:
             st.info("Knowledge Graph에 edge가 없습니다.")
 
 with editor_tab:
-    current_content = kb.read()
-    edited_content = st.text_area("KB.md 내용", value=current_content, height=600)
+    edited_content = st.text_area("KB.md 내용", value=kb_content, height=600)
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("💾 저장", use_container_width=True):
+        if st.button("💾 저장", width="stretch"):
             kb.write(edited_content)
             st.toast("KB.md가 저장되었습니다!", icon="✅")
             st.rerun()
 
     with col2:
-        if st.button("↩️ 백업 복원", use_container_width=True):
+        if st.button("↩️ 백업 복원", width="stretch"):
             success = kb.restore_backup()
             if success:
                 st.toast("백업이 복원되었습니다!", icon="✅")
@@ -64,7 +68,7 @@ with editor_tab:
                 st.warning("백업 파일을 찾을 수 없습니다.")
 
     with col3:
-        if st.button("🔄 초기화", use_container_width=True):
+        if st.button("🔄 초기화", width="stretch"):
             st.session_state.show_init_confirm = True
 
         if st.session_state.get("show_init_confirm", False):

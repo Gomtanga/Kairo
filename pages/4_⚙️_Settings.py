@@ -4,6 +4,10 @@ from core.config import read_env, save_env, reload_env
 from core.llm_client import LLMClient
 from core import LevelSystem
 
+@st.cache_resource
+def get_llm_client():
+    return LLMClient()
+
 st.set_page_config(page_title="설정 - Kairo", page_icon="⚙️", layout="wide")
 st.title("⚙️ 설정")
 
@@ -53,12 +57,13 @@ with st.form("env_form"):
 st.divider()
 st.subheader("🔍 연결 테스트")
 
-if st.button("API 연결 테스트", use_container_width=True):
+if st.button("API 연결 테스트", width="stretch"):
     with st.spinner("테스트 중..."):
         reload_env()
-        llm = LLMClient()
+        llm = get_llm_client()
         resp = llm.chat([{"role": "user", "content": "안녕"}], kb_content="", max_tokens=100)
-    if resp.startswith("⚠️") or resp.startswith("❌") or resp.startswith("🔌") or resp.startswith("⏰") or resp.startswith("🔑") or resp.startswith("⏳"):
-        st.error(resp)
+    resp_text = resp.get("content", "") if isinstance(resp, dict) else str(resp)
+    if resp_text.startswith("⚠️") or resp_text.startswith("❌") or resp_text.startswith("🔌") or resp_text.startswith("⏰") or resp_text.startswith("🔑") or resp_text.startswith("⏳"):
+        st.error(resp_text)
     else:
-        st.success(f"연결 성공! 응답: {resp[:200]}")
+        st.success(f"연결 성공! 응답: {resp_text[:200]}")

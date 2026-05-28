@@ -1,7 +1,6 @@
 # [KAIRO] Session Manager - multi-session chat management
 import json
 import os
-import shutil
 from datetime import datetime
 
 from core.config import MAX_SESSIONS  # [KAIRO]
@@ -34,8 +33,11 @@ class SessionManager:
     def load_session(session_id: str) -> dict:
         path = os.path.join(SESSIONS_DIR, f"{session_id}.json")
         if os.path.exists(path):
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError):
+                return None
         return None
 
     @staticmethod
@@ -43,8 +45,11 @@ class SessionManager:
         SessionManager._ensure_dir()
         session["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         path = os.path.join(SESSIONS_DIR, f"{session['id']}.json")
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(session, f, ensure_ascii=False, indent=2)
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(session, f, ensure_ascii=False, indent=2)
+        except OSError:
+            pass
 
     @staticmethod
     def _cleanup_old_sessions():  # [KAIRO]
