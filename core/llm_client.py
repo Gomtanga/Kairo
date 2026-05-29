@@ -13,6 +13,7 @@ from core.config import (
     LLM_TEMPERATURE,
     TOOL_WHITELIST,
 )
+import core.config as _cfg
 
 # [KAIRO] UI tool definitions for function calling
 UI_TOOLS = [
@@ -96,12 +97,19 @@ UI_TOOLS = [
 
 class LLMClient:
 
-    def __init__(self):
-        self.api_key = LLM_API_KEY
-        self.base_url = LLM_BASE_URL
-        self.model = LLM_MODEL
+    def _refresh_config(self):
+        if not self.api_key:
+            _cfg.reload_env()
+            self.api_key = _cfg.LLM_API_KEY
+            self.base_url = _cfg.LLM_BASE_URL
+            self.model = _cfg.LLM_MODEL
 
-    # [KAIRO] chat with optional tools support
+    def __init__(self):
+        self.api_key = ""
+        self.base_url = ""
+        self.model = ""
+        self._refresh_config()
+
     def chat(
         self,
         messages: list[dict],
@@ -111,6 +119,7 @@ class LLMClient:
         use_tools: bool = False,
         agent_level: int = 0,
     ) -> dict:
+        self._refresh_config()
         if not self.api_key:
             return {"content": "⚠️ API 키가 설정되지 않았습니다. .env.toml 파일을 확인해주세요.", "tool_calls": [], "reasoning": ""}
 
@@ -199,6 +208,7 @@ class LLMClient:
 
     # [KAIRO] streaming chat (no tool support — tools only in non-streaming)
     def chat_stream(self, messages: list[dict], kb_content: str = "", temperature: float = None, max_tokens: int = None):
+        self._refresh_config()
         if not self.api_key:
             yield "⚠️ API 키가 설정되지 않았습니다. .env.toml 파일을 확인해주세요."
             return
