@@ -22,6 +22,13 @@ current_model = env.get("LLM_MODEL", "deepseek-v4-flash")
 
 st.subheader("🔑 API 설정")
 
+try:
+    import streamlit as _st
+    if hasattr(_st, "secrets") and "api" in _st.secrets:
+        st.info("📡 Streamlit Cloud `st.secrets`에서 API 설정을 감지했습니다. 아래에서 덮어쓸 수 있습니다.")
+except Exception:
+    pass
+
 with st.form("env_form"):
     new_key = st.text_input(
         "API 키 (LLM_API_KEY)",
