@@ -9,6 +9,8 @@ LLM_API_KEY = ""
 LLM_BASE_URL = ""
 LLM_MODEL = "deepseek-v4-flash"
 
+_in_memory_env: dict = {}
+
 
 def _load_toml() -> dict:
     if os.path.exists(ENV_PATH):
@@ -20,25 +22,68 @@ def _load_toml() -> dict:
     return {}
 
 
+def _load_secrets() -> dict:
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets") and "api" in st.secrets:
+            return dict(st.secrets["api"])
+    except Exception:
+        pass
+    return {}
+
+
+def _load_env_vars() -> dict:
+    result = {}
+    for key in ("LLM_API_KEY", "LLM_BASE_URL", "LLM_MODEL"):
+        val = os.getenv(key)
+        if val:
+            result[key] = val
+    return result
+
+
+def _get_value(key: str, file_env: dict, secrets_env: dict, os_env: dict, default: str = "") -> str:
+    if key in _in_memory_env and _in_memory_env[key]:
+        return _in_memory_env[key]
+    if key in file_env and file_env[key]:
+        return file_env[key]
+    if key in secrets_env and secrets_env[key]:
+        return str(secrets_env[key])
+    if key in os_env and os_env[key]:
+        return os_env[key]
+    return default
+
+
 def reload_env():
     global LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
-    env = _load_toml()
-    LLM_API_KEY = env.get("LLM_API_KEY", "")
-    LLM_BASE_URL = env.get("LLM_BASE_URL", "")
-    LLM_MODEL = env.get("LLM_MODEL", "deepseek-v4-flash")
+    file_env = _load_toml()
+    secrets_env = _load_secrets()
+    os_env = _load_env_vars()
+    LLM_API_KEY = _get_value("LLM_API_KEY", file_env, secrets_env, os_env, "")
+    LLM_BASE_URL = _get_value("LLM_BASE_URL", file_env, secrets_env, os_env, "")
+    LLM_MODEL = _get_value("LLM_MODEL", file_env, secrets_env, os_env, "deepseek-v4-flash")
 
 
 def save_env(values: dict):
+    global LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+    _in_memory_env.update({k: v for k, v in values.items() if v})
     try:
         with open(ENV_PATH, "w", encoding="utf-8") as f:
             toml.dump({"api": values}, f)
-        reload_env()
     except OSError:
         pass
+    reload_env()
 
 
 def read_env() -> dict:
-    return _load_toml()
+    file_env = _load_toml()
+    merged = {**file_env, **_in_memory_env}
+    if not merged.get("LLM_API_KEY") and LLM_API_KEY:
+        merged["LLM_API_KEY"] = LLM_API_KEY
+    if not merged.get("LLM_BASE_URL") and LLM_BASE_URL:
+        merged["LLM_BASE_URL"] = LLM_BASE_URL
+    if not merged.get("LLM_MODEL") and LLM_MODEL:
+        merged["LLM_MODEL"] = LLM_MODEL
+    return merged
 
 
 reload_env()
