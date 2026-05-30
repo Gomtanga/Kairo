@@ -402,7 +402,7 @@ if user_input:
         if matched_big:
             big_skill_results = BigSkillExecutor.execute(matched_big, all_skills, user_input, llm)
             steps_desc = "\n".join(
-                f"  {r.get('step', '→')} {r['skill']}: {r['status']}"
+                f"  {r.get('step', '→')} {r['skill']}: {r.get('status', 'error')}"
                 for r in big_skill_results
             )
             big_context = (

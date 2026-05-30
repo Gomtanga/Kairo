@@ -196,9 +196,9 @@ class SkillStore:
             pass
 
     @staticmethod
-    def add(name: str, trigger: str, action: str, description: str,
-            skill_type: str = "micro", sub_skills: list = None,
-            execution_mode: str = "sequential", path: str = SKILLS_PATH) -> list[dict]:
+    def add(name: str, trigger: str, action: str, description: str, path: str = SKILLS_PATH,
+            *, skill_type: str = "micro", sub_skills: list = None,
+            execution_mode: str = "sequential") -> list[dict]:
         skills = SkillStore.load(path)
         skill = {"name": name, "trigger": trigger, "action": action, "description": description}
         if skill_type == "big":
@@ -302,7 +302,8 @@ class BigSkillExecutor:
     @staticmethod
     def get_sub_skills(big_skill: dict, all_skills: list[dict]) -> list[dict]:
         sub_names = big_skill.get("sub_skills", [])
-        return [s for s in all_skills if s["name"] in sub_names]
+        skill_map = {s["name"]: s for s in all_skills}
+        return [skill_map[name] for name in sub_names if name in skill_map]
 
     @staticmethod
     def execute(big_skill: dict, all_skills: list[dict], query: str, llm_client=None) -> list[dict]:
@@ -344,7 +345,7 @@ class BigSkillExecutor:
                     "skill": sub["name"],
                     "step": f"{step_num}/{total_steps}",
                     "action": sub.get("action", ""),
-                    "status": "completed",
+                    "status": "planned",
                     "context": context_for_step,
                 })
                 accumulated_context += f"\n[{sub['name']} 실행 완료]"
