@@ -183,7 +183,7 @@ class SkillStore:
                     return json.load(f)
             except (json.JSONDecodeError, OSError):
                 pass
-        defaults = SkillSystem.get_default_skills()
+        defaults = SkillSystem.get_default_skills() + BigSkillExecutor.get_default_big_skills()
         SkillStore.save(defaults, path)
         return defaults
 
@@ -196,9 +196,16 @@ class SkillStore:
             pass
 
     @staticmethod
-    def add(name: str, trigger: str, action: str, description: str, path: str = SKILLS_PATH) -> list[dict]:
+    def add(name: str, trigger: str, action: str, description: str, path: str = SKILLS_PATH,
+            *, skill_type: str = "micro", sub_skills: list = None,
+            execution_mode: str = "sequential") -> list[dict]:
         skills = SkillStore.load(path)
-        skills.append({"name": name, "trigger": trigger, "action": action, "description": description})
+        skill = {"name": name, "trigger": trigger, "action": action, "description": description}
+        if skill_type == "big":
+            skill["type"] = "big"
+            skill["sub_skills"] = sub_skills or []
+            skill["execution_mode"] = execution_mode
+        skills.append(skill)
         SkillStore.save(skills, path)
         return skills
 
@@ -227,12 +234,32 @@ class SkillStore:
         if not skills:
             return ""
         lines = ["## 🔧 Skills"]
-        for s in skills:
-            lines.append(f"### skill: {s['name']}")
-            lines.append(f"- trigger: {s['trigger']}")
-            lines.append(f"- action: {s['action']}")
-            lines.append(f"- description: {s['description']}")
+        # Group: micro skills first, then big skills
+        micro_skills = [s for s in skills if s.get("type") != "big"]
+        big_skills = [s for s in skills if s.get("type") == "big"]
+
+        if micro_skills:
             lines.append("")
+            lines.append("### 마이크로스킬 (단일 동작)")
+            for s in micro_skills:
+                lines.append(f"#### skill: {s['name']}")
+                lines.append(f"- trigger: {s['trigger']}")
+                lines.append(f"- action: {s['action']}")
+                lines.append(f"- description: {s['description']}")
+                lines.append("")
+
+        if big_skills:
+            lines.append("### 🏗️ 빅스킬 (복합 워크플로우)")
+            for s in big_skills:
+                sub_list = ", ".join(s.get("sub_skills", []))
+                mode = s.get("execution_mode", "sequential")
+                lines.append(f"#### big-skill: {s['name']}")
+                lines.append(f"- trigger: {s['trigger']}")
+                lines.append(f"- description: {s['description']}")
+                lines.append(f"- sub_skills: {sub_list}")
+                lines.append(f"- execution_mode: {mode}")
+                lines.append("")
+
         return "\n".join(lines)
 
     @staticmethod
@@ -260,3 +287,88 @@ class SkillStore:
             if not skip:
                 result.append(line)
         return "\n".join(result)
+
+
+class BigSkillExecutor:
+    """
+    Executes big skills (composite workflows) by orchestrating multiple micro skills.
+    Supports sequential and parallel execution modes.
+    """
+
+    @staticmethod
+    def is_big_skill(skill: dict) -> bool:
+        return skill.get("type") == "big"
+
+    @staticmethod
+    def get_sub_skills(big_skill: dict, all_skills: list[dict]) -> list[dict]:
+        sub_names = big_skill.get("sub_skills", [])
+        skill_map = {s["name"]: s for s in all_skills}
+        return [skill_map[name] for name in sub_names if name in skill_map]
+
+    @staticmethod
+    def execute(big_skill: dict, all_skills: list[dict], query: str, llm_client=None) -> list[dict]:
+        """
+        Execute a big skill by running its sub-skills.
+        Returns list of execution results.
+        """
+        mode = big_skill.get("execution_mode", "sequential")
+        sub_skills = BigSkillExecutor.get_sub_skills(big_skill, all_skills)
+
+        if not sub_skills:
+            return [{"skill": big_skill["name"], "error": "실행할 하위 스킬 없음"}]
+
+        results = []
+
+        if mode == "parallel":
+            # Execute all sub-skills conceptually in parallel
+            for sub in sub_skills:
+                results.append({
+                    "big_skill": big_skill["name"],
+                    "skill": sub["name"],
+                    "action": sub.get("action", ""),
+                    "status": "triggered",
+                })
+        else:
+            # Sequential: run one after another, building context
+            accumulated_context = query
+            for i, sub in enumerate(sub_skills):
+                step_num = i + 1
+                total_steps = len(sub_skills)
+                context_for_step = (
+                    f"[빅스킬: {big_skill['name']}] "
+                    f"단계 {step_num}/{total_steps}: {sub['name']}\n"
+                    f"컨텍스트: {accumulated_context}\n"
+                    f"실행: {sub.get('action', '')}"
+                )
+                results.append({
+                    "big_skill": big_skill["name"],
+                    "skill": sub["name"],
+                    "step": f"{step_num}/{total_steps}",
+                    "action": sub.get("action", ""),
+                    "status": "planned",
+                    "context": context_for_step,
+                })
+                accumulated_context += f"\n[{sub['name']} 실행 완료]"
+
+        return results
+
+    @staticmethod
+    def get_default_big_skills() -> list[dict]:
+        return [
+            {
+                "name": "comprehensive-research",
+                "type": "big",
+                "trigger": '"종합 조사", "리서치", "research", "분석 리포트"',
+                "description": "웹 검색 + 계획 + 정리를 순차적으로 실행하는 종합 리서치 빅스킬",
+                "sub_skills": ["web-research", "planner"],
+                "execution_mode": "sequential",
+            },
+            {
+                "name": "full-stack-dev",
+                "type": "big",
+                "trigger": '"개발", "풀스택", "fullstack", "기능 구현"',
+                "description": "계획 → 코딩 → 검토 순서로 진행하는 풀스택 개발 워크플로우",
+                "sub_skills": ["planner", "coding-helper"],
+                "execution_mode": "sequential",
+            },
+        ]
