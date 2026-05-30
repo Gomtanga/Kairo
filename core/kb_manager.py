@@ -30,8 +30,11 @@ class KBManager:
         with KBManager._lock:
             self._backup()
             try:
-                with open(self.kb_path, "w", encoding="utf-8") as f:
+                # Write to temp file first, then atomically replace
+                tmp_path = self.kb_path + ".tmp"
+                with open(tmp_path, "w", encoding="utf-8") as f:
                     f.write(content)
+                os.replace(tmp_path, self.kb_path)
             except OSError:
                 pass
 
@@ -123,7 +126,7 @@ class KBManager:
         # Find the Growth Log section
         section_start = None
         for i, line in enumerate(lines):
-            if line.strip() == "## 📊 Growth Log":
+            if "Growth Log" in line.strip():
                 section_start = i
                 break
         if section_start is None:
@@ -180,14 +183,12 @@ class KBManager:
         growth_log_lines = []
 
         in_growth_log = False
-        in_header_section = False
 
         for i, line in enumerate(lines):
             stripped = line.strip()
             # Detect section headers
             if stripped.startswith("## "):
-                in_header_section = True
-                if stripped == "## 📊 Growth Log":
+                if "Growth Log" in stripped:
                     growth_log_start = i
                     in_growth_log = True
                     preserved.append(line)
@@ -203,12 +204,6 @@ class KBManager:
 
         if not growth_log_lines or growth_log_start is None:
             return False, "Growth Log 섹션이 없어 압축할 대상이 없습니다."
-
-        # Count entries
-        entry_count = len([l for l in growth_log_lines if re.match(r"^\s*### Interaction \d+", l)])
-
-        if entry_count <= 3:
-            return False, f"Growth Log가 {entry_count}개로 충분히 적어 압축 불필요"
 
         # Parse entries properly
         all_entries = []
@@ -254,7 +249,8 @@ class KBManager:
                 )
                 summary_content = summary_result.get("content", "") if isinstance(summary_result, dict) else str(summary_result)
                 if summary_content:
-                    summary_text = f"### 📋 요약 (압축)\n- summary: {summary_content}\n- 기존 {len(old_entries)}개 항목 → 요약됨\n"
+                    sanitized = self._sanitize_summary(summary_content)
+                    summary_text = f"### 📋 요약 (압축)\n- summary: {sanitized}\n- 기존 {len(old_entries)}개 항목 → 요약됨\n"
             except Exception as e:
                 # Fallback to basic summary
                 summary_text = self._basic_summary(old_entries)
@@ -279,19 +275,39 @@ class KBManager:
         else:
             new_content = preserved_text + "\n\n" + compressed_section
 
-        # Write compressed content
-        self._backup()
-        self.write(new_content)
-
+        # Calculate new token count before writing
         new_token_count = self.estimate_tokens(new_content)
-        saved_tokens = token_count - new_token_count
-        msg = (
-            f"📦 KB.md 압축 완료! "
-            f"({token_count:,} → {new_token_count:,} tokens, "
-            f"{saved_tokens:,} tokens 절약, "
-            f"{len(old_entries)}개 항목 요약)"
-        )
-        return True, msg
+
+        # Only write if compression actually reduces token count
+        if new_token_count < token_count:
+            self._backup()
+            self.write(new_content)
+            saved_tokens = token_count - new_token_count
+            msg = (
+                f"📦 KB.md 압축 완료! "
+                f"({token_count:,} → {new_token_count:,} tokens, "
+                f"{saved_tokens:,} tokens 절약, "
+                f"{len(old_entries)}개 항목 요약)"
+            )
+            return True, msg
+        else:
+            msg = (
+                f"압축 후에도 토큰 수가 줄어들지 않아 건너뜁니다. "
+                f"(기존: {token_count:,} → 압축 후: {new_token_count:,})"
+            )
+            return False, msg
+
+    @staticmethod
+    def _sanitize_summary(text: str, max_chars: int = 200) -> str:
+        """Sanitize LLM output for safe Markdown insertion."""
+        # Truncate to max_chars
+        if len(text) > max_chars:
+            text = text[:max_chars] + "..."
+        # Escape '#' characters to prevent accidental Markdown headings
+        text = text.replace("#", "\\#")
+        # Make newlines bullet-safe with indentation
+        text = text.replace("\n", "\n  ")
+        return text
 
     def _basic_summary(self, entries: list[str]) -> str:
         """Fallback summary when LLM is not available."""
