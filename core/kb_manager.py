@@ -30,8 +30,11 @@ class KBManager:
         with KBManager._lock:
             self._backup()
             try:
-                with open(self.kb_path, "w", encoding="utf-8") as f:
+                # Write to temp file first, then atomically replace
+                tmp_path = self.kb_path + ".tmp"
+                with open(tmp_path, "w", encoding="utf-8") as f:
                     f.write(content)
+                os.replace(tmp_path, self.kb_path)
             except OSError:
                 pass
 
@@ -123,7 +126,7 @@ class KBManager:
         # Find the Growth Log section
         section_start = None
         for i, line in enumerate(lines):
-            if line.strip() == "## 📊 Growth Log":
+            if "Growth Log" in line.strip():
                 section_start = i
                 break
         if section_start is None:
@@ -157,6 +160,176 @@ class KBManager:
             shutil.copy2(self.backup_path, self.kb_path)
             return True
         return False
+
+    def compress(self, llm_client=None) -> tuple[bool, str]:
+        """
+        Compress KB.md when it exceeds the threshold.
+        Preserves Tier1-2 sections, summarizes old Growth Log entries via LLM.
+
+        Returns:
+            (success: bool, message: str)
+        """
+        if not self.needs_compression():
+            return False, "압축이 필요하지 않습니다."
+
+        content = self.read()
+        token_count = self.estimate_tokens(content)
+
+        # Parse sections into tiers
+        lines = content.split("\n")
+        preserved = []
+        growth_log_start = None
+        growth_log_end = None
+        growth_log_lines = []
+
+        in_growth_log = False
+
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            # Detect section headers
+            if stripped.startswith("## "):
+                if "Growth Log" in stripped:
+                    growth_log_start = i
+                    in_growth_log = True
+                    preserved.append(line)
+                    continue
+                else:
+                    in_growth_log = False
+
+            if in_growth_log:
+                growth_log_lines.append(line)
+                growth_log_end = i
+            else:
+                preserved.append(line)
+
+        if not growth_log_lines or growth_log_start is None:
+            return False, "Growth Log 섹션이 없어 압축할 대상이 없습니다."
+
+        # Parse entries properly
+        all_entries = []
+        temp_header = None
+        current_entry = []
+        for line in growth_log_lines:
+            if re.match(r"^\s*### Interaction \d+", line):
+                if temp_header and current_entry:
+                    all_entries.append("\n".join([temp_header] + current_entry))
+                temp_header = line
+                current_entry = []
+            elif temp_header:
+                current_entry.append(line)
+        if temp_header and current_entry:
+            all_entries.append("\n".join([temp_header] + current_entry))
+
+        if len(all_entries) <= 3:
+            return False, f"Growth Log가 {len(all_entries)}개로 충분히 적어 압축 불필요"
+
+        old_entries = all_entries[:-3]  # All but last 3
+        recent_entries = all_entries[-3:]  # Last 3
+
+        # Use LLM to summarize if available
+        summary_text = ""
+        if llm_client:
+            old_text = "\n\n".join(old_entries)
+            try:
+                summary_result = llm_client.chat(
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": (
+                                "다음은 Kairo 에이전트의 오래된 Growth Log 항목들입니다. "
+                                "이것들을 3-5줄로 간결하게 요약해주세요. "
+                                "날짜 범위, 주요 활동 유형, 주요 변경사항을 포함하세요.\n\n"
+                                f"{old_text}"
+                            ),
+                        }
+                    ],
+                    kb_content="",
+                    temperature=0.3,
+                    max_tokens=1024,
+                )
+                summary_content = summary_result.get("content", "") if isinstance(summary_result, dict) else str(summary_result)
+                if summary_content:
+                    sanitized = self._sanitize_summary(summary_content)
+                    summary_text = f"### 📋 요약 (압축)\n- summary: {sanitized}\n- 기존 {len(old_entries)}개 항목 → 요약됨\n"
+            except Exception as e:
+                # Fallback to basic summary
+                summary_text = self._basic_summary(old_entries)
+        else:
+            summary_text = self._basic_summary(old_entries)
+
+        # Rebuild Growth Log section
+        compressed_section = "## 📊 Growth Log\n"
+        if summary_text:
+            compressed_section += f"\n{summary_text}\n"
+        compressed_section += "\n" + "\n\n".join(recent_entries)
+
+        # Rebuild full content
+        preserved_text = "\n".join(preserved)
+        # Find where growth log was and replace
+        if growth_log_start is not None:
+            before_growth = "\n".join(lines[:growth_log_start])
+            after_growth = "\n".join(lines[growth_log_end + 1:]) if growth_log_end < len(lines) - 1 else ""
+            new_content = before_growth.rstrip() + "\n" + compressed_section
+            if after_growth.strip():
+                new_content += "\n" + after_growth
+        else:
+            new_content = preserved_text + "\n\n" + compressed_section
+
+        # Calculate new token count before writing
+        new_token_count = self.estimate_tokens(new_content)
+
+        # Only write if compression actually reduces token count
+        if new_token_count < token_count:
+            self._backup()
+            self.write(new_content)
+            saved_tokens = token_count - new_token_count
+            msg = (
+                f"📦 KB.md 압축 완료! "
+                f"({token_count:,} → {new_token_count:,} tokens, "
+                f"{saved_tokens:,} tokens 절약, "
+                f"{len(old_entries)}개 항목 요약)"
+            )
+            return True, msg
+        else:
+            msg = (
+                f"압축 후에도 토큰 수가 줄어들지 않아 건너뜁니다. "
+                f"(기존: {token_count:,} → 압축 후: {new_token_count:,})"
+            )
+            return False, msg
+
+    @staticmethod
+    def _sanitize_summary(text: str, max_chars: int = 200) -> str:
+        """Sanitize LLM output for safe Markdown insertion."""
+        # Truncate to max_chars
+        if len(text) > max_chars:
+            text = text[:max_chars] + "..."
+        # Escape '#' characters to prevent accidental Markdown headings
+        text = text.replace("#", "\\#")
+        # Make newlines bullet-safe with indentation
+        text = text.replace("\n", "\n  ")
+        return text
+
+    def _basic_summary(self, entries: list[str]) -> str:
+        """Fallback summary when LLM is not available."""
+        dates = []
+        types = set()
+        for entry in entries:
+            for line in entry.split("\n"):
+                line = line.strip()
+                if re.match(r"^### Interaction \d+", line):
+                    continue
+                if re.match(r"^- date:", line):
+                    dates.append(line.split(":", 1)[1].strip())
+                if re.match(r"^- type:", line):
+                    types.add(line.split(":", 1)[1].strip())
+
+        date_range = f"{dates[0]} ~ {dates[-1]}" if len(dates) > 1 else (dates[0] if dates else "?")
+        types_str = ", ".join(sorted(types)) if types else "다양"
+        return (
+            f"### 📋 요약 (압축)\n"
+            f"- summary: {len(entries)}개 Growth Log 항목 ({date_range}) — 유형: {types_str}\n"
+            f"- 기존 {len(entries)}개 항목 → 요약됨\n"
+        )
 
     def _backup(self) -> None:
         if os.path.exists(self.kb_path):
