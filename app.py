@@ -4,7 +4,7 @@ import os
 import re
 from datetime import datetime
 import streamlit as st
-from core import KBManager, LLMClient, LevelSystem, SkillSystem, SkillStore, KnowledgeGraph, ToolSystem, SessionManager, CronManager
+from core import KBManager, LLMClient, LevelSystem, SkillSystem, SkillStore, BigSkillExecutor, KnowledgeGraph, ToolSystem, SessionManager, CronManager
 
 def extract_kb_updates(response: str) -> tuple[str, list[str]]:
     display = response
@@ -283,6 +283,22 @@ with st.sidebar:
     st.markdown(f"**총 상호작용:** {st.session_state.interaction_count}회")
     st.markdown(f"**KB.md 토큰:** 약 {kb.estimate_tokens():,}개")
 
+    # [KAIRO] big skill registry
+    st.divider()
+    st.subheader("🏗️ 빅스킬")
+    _all_skills = SkillStore.load()
+    _big_skills = [s for s in _all_skills if BigSkillExecutor.is_big_skill(s)]
+    if _big_skills:
+        for _bs in _big_skills:
+            _sub_list = ", ".join(_bs.get("sub_skills", []))
+            _mode = _bs.get("execution_mode", "sequential")
+            st.markdown(f"**{_bs['name']}** ({_mode})")
+            st.caption(f"→ {_sub_list}")
+            if st.button(f"▶ 실행: {_bs['name']}", key=f"run_bs_{_bs['name']}"):
+                st.info(f"🏗️ 빅스킬 '{_bs['name']}' 실행 시작... 하위 스킬: {_sub_list}")
+    else:
+        st.caption("등록된 빅스킬 없음")
+
     # [KAIRO] tool execution log sidebar
     tool_logs = ToolSystem.load_logs()
     if tool_logs:
@@ -374,6 +390,26 @@ if user_input:
             kb.write(kb_content)
         skills_section = SkillStore.to_kb_section(SkillStore.load())
         full_context = kb_content + "\n\n" + skills_section if skills_section else kb_content
+
+        # [KAIRO] Big Skill detection and orchestration
+        big_skill_results = []
+        all_skills = SkillStore.load()
+        matched_big = None
+        for s in all_skills:
+            if BigSkillExecutor.is_big_skill(s) and SkillSystem.match_skill(user_input, [s]):
+                matched_big = s
+                break
+        if matched_big:
+            big_skill_results = BigSkillExecutor.execute(matched_big, all_skills, user_input, llm)
+            steps_desc = "\n".join(
+                f"  {r.get('step', '→')} {r['skill']}: {r['status']}"
+                for r in big_skill_results
+            )
+            big_context = (
+                f"\n\n[🏗️ 빅스킬 실행: {matched_big['name']}]\n"
+                f"실행 계획:\n{steps_desc}\n"
+            )
+            full_context += big_context
 
         # [KAIRO] function calling for UI tools + streaming fallback
         with st.spinner("💭 생각 중..."):
