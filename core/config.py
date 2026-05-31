@@ -1,6 +1,6 @@
 # [KAIRO] Core configuration module
 import os
-import toml
+import tomllib  # Python 3.11+ stdlib
 
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env.toml")
 
@@ -15,7 +15,8 @@ _in_memory_env: dict = {}
 def _load_toml() -> dict:
     if os.path.exists(ENV_PATH):
         try:
-            data = toml.load(ENV_PATH)
+            with open(ENV_PATH, "rb") as f:
+                data = tomllib.load(f)
             return data.get("api", {})
         except Exception:
             return {}
@@ -75,8 +76,12 @@ def save_env(values: dict):
     global LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
     _in_memory_env.update(values)
     try:
+        lines = ["[api]"]
+        for k, v in values.items():
+            escaped = v.replace("\\", "\\\\").replace('"', '\\"')
+            lines.append(f'{k} = "{escaped}"')
         with open(ENV_PATH, "w", encoding="utf-8") as f:
-            toml.dump({"api": values}, f)
+            f.write("\n".join(lines) + "\n")
     except OSError:
         pass
     reload_env()
