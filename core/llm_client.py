@@ -98,11 +98,10 @@ UI_TOOLS = [
 class LLMClient:
 
     def _refresh_config(self):
-        if not self.api_key:
-            _cfg.reload_env()
-            self.api_key = _cfg.LLM_API_KEY
-            self.base_url = _cfg.LLM_BASE_URL
-            self.model = _cfg.LLM_MODEL
+        _cfg.reload_env()
+        self.api_key = _cfg.LLM_API_KEY
+        self.base_url = _cfg.LLM_BASE_URL
+        self.model = _cfg.LLM_MODEL
 
     def __init__(self):
         self.api_key = ""

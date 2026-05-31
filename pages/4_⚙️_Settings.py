@@ -22,6 +22,12 @@ current_model = env.get("LLM_MODEL", "deepseek-v4-flash")
 
 st.subheader("🔑 API 설정")
 
+# 현재 설정값 요약 표시 (form 밖에서 실시간 확인 가능)
+with st.expander("🔍 현재 설정값 확인", expanded=False):
+    st.text(f"LLM_API_KEY: {current_key[:12]}...{current_key[-4:]}" if len(current_key) > 16 else (f"LLM_API_KEY: {current_key}" if current_key else "LLM_API_KEY: (설정되지 않음)"))
+    st.text(f"LLM_BASE_URL: {current_url or '(설정되지 않음)'}")
+    st.text(f"LLM_MODEL: {current_model}")
+
 try:
     import streamlit as _st
     if hasattr(_st, "secrets") and "api" in _st.secrets:
@@ -30,10 +36,12 @@ except Exception:
     pass
 
 with st.form("env_form"):
+    # show_key checkbox → form 밖으로 뺄 수 없으니, type을 조건부로 변경
+    show_key = st.checkbox("👁️ API 키 표시 (저장 후 확인)", help="체크하고 저장하면 키가 평문으로 표시됩니다.")
     new_key = st.text_input(
         "API 키 (LLM_API_KEY)",
         value=current_key,
-        type="password",
+        type="default" if show_key else "password",
         help="LLM API 키를 입력하세요.",
     )
     new_url = st.text_input(
@@ -46,10 +54,6 @@ with st.form("env_form"):
         value=current_model,
         help="사용할 LLM 모델명 (예: deepseek-v4-flash)",
     )
-
-    show_key = st.checkbox("API 키 표시")
-    if show_key:
-        st.code(new_key)
 
     submitted = st.form_submit_button("💾 저장")
     if submitted:

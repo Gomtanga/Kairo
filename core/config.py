@@ -42,14 +42,22 @@ def _load_env_vars() -> dict:
 
 
 def _get_value(key: str, file_env: dict, secrets_env: dict, os_env: dict, default: str = "") -> str:
-    if key in _in_memory_env and _in_memory_env[key]:
-        return _in_memory_env[key]
-    if key in file_env and file_env[key]:
-        return file_env[key]
-    if key in secrets_env and secrets_env[key]:
-        return str(secrets_env[key])
-    if key in os_env and os_env[key]:
-        return os_env[key]
+    if key in _in_memory_env:
+        v = _in_memory_env[key]
+        if v:
+            return v
+    if key in file_env:
+        v = file_env[key]
+        if v:
+            return v
+    if key in secrets_env:
+        v = str(secrets_env[key])
+        if v:
+            return v
+    if key in os_env:
+        v = os_env[key]
+        if v:
+            return v
     return default
 
 
@@ -65,7 +73,7 @@ def reload_env():
 
 def save_env(values: dict):
     global LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
-    _in_memory_env.update({k: v for k, v in values.items() if v})
+    _in_memory_env.update(values)
     try:
         with open(ENV_PATH, "w", encoding="utf-8") as f:
             toml.dump({"api": values}, f)
