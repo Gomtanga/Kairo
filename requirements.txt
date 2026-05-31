@@ -1,6 +1,5 @@
 streamlit>=1.28.0
 apscheduler>=3.10.0
-toml>=0.10.0
 requests>=2.31.0
 kiwipiepy>=0.20.0
 rapidfuzz>=3.0.0

@@ -1,8 +1,44 @@
 # [KAIRO]
 import streamlit as st
+import os
+import logging
 from core.config import read_env, save_env, reload_env
 from core.llm_client import LLMClient
 from core import LevelSystem
+
+logger = logging.getLogger(__name__)
+
+
+def is_streamlit_cloud() -> bool:
+    """Detect if running on Streamlit Cloud (readonly filesystem)."""
+    # Method 1: Check Streamlit Cloud-specific environment variable
+    if os.environ.get("STREAMLIT_SHARING_MODE", "") == "1":
+        return True
+    if os.environ.get("STREAMLIT_CLOUD", "") == "1":
+        return True
+    # Method 2: Try a test write to detect readonly filesystem
+    try:
+        from core.config import ENV_PATH
+        test_path = ENV_PATH + ".cloud_test_tmp"
+        with open(test_path, "w") as f:
+            f.write("")
+        os.remove(test_path)
+        return False  # Write succeeded — not cloud
+    except OSError:
+        return True  # Write failed — readonly filesystem
+    except Exception:
+        return False
+
+
+def get_secrets_api_config() -> dict:
+    """Read API config from st.secrets if available."""
+    try:
+        if hasattr(st, "secrets") and "api" in st.secrets:
+            return dict(st.secrets["api"])
+    except Exception:
+        pass
+    return {}
+
 
 @st.cache_resource
 def get_llm_client():
@@ -13,6 +49,22 @@ st.title("⚙️ 설정")
 
 with st.sidebar:
     LevelSystem.render_sidebar("Settings")
+
+on_streamlit_cloud = is_streamlit_cloud()
+
+if on_streamlit_cloud:
+    st.warning(
+        "☁️ **Streamlit Cloud 환경**: 설정이 이 세션에만 저장됩니다. "
+        ".env.toml에 파일 쓰기가 불가능합니다."
+    )
+
+    # Load API config from st.secrets for pre-fill if available
+    secrets_api = get_secrets_api_config()
+    if secrets_api:
+        st.info(
+            "📡 `st.secrets`에서 API 설정을 로드했습니다. "
+            "아래에 미리 채워진 값을 확인 후 사용하세요."
+        )
 
 env = read_env()
 
@@ -27,13 +79,6 @@ with st.expander("🔍 현재 설정값 확인", expanded=False):
     st.text(f"LLM_API_KEY: {current_key[:12]}...{current_key[-4:]}" if len(current_key) > 16 else (f"LLM_API_KEY: {current_key}" if current_key else "LLM_API_KEY: (설정되지 않음)"))
     st.text(f"LLM_BASE_URL: {current_url or '(설정되지 않음)'}")
     st.text(f"LLM_MODEL: {current_model}")
-
-try:
-    import streamlit as _st
-    if hasattr(_st, "secrets") and "api" in _st.secrets:
-        st.info("📡 Streamlit Cloud `st.secrets`에서 API 설정을 감지했습니다. 아래에서 덮어쓸 수 있습니다.")
-except Exception:
-    pass
 
 with st.form("env_form"):
     # show_key checkbox → form 밖으로 뺄 수 없으니, type을 조건부로 변경
@@ -55,15 +100,21 @@ with st.form("env_form"):
         help="사용할 LLM 모델명 (예: deepseek-v4-flash)",
     )
 
-    submitted = st.form_submit_button("💾 저장")
+    submitted = st.form_submit_button("💾 저장", disabled=on_streamlit_cloud)
     if submitted:
         save_env({
             "LLM_API_KEY": new_key,
             "LLM_BASE_URL": new_url,
             "LLM_MODEL": new_model,
         })
-        st.success("설정이 저장되었습니다.")
-        st.rerun()
+        if on_streamlit_cloud:
+            st.info(
+                "☁️ Streamlit Cloud 환경에서는 파일 저장이 불가능합니다. "
+                "설정은 이 세션에만 유지됩니다."
+            )
+        else:
+            st.success("설정이 저장되었습니다.")
+            st.rerun()
 
 st.divider()
 st.subheader("🔍 연결 테스트")

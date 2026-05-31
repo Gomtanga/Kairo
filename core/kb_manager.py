@@ -116,6 +116,21 @@ class KBManager:
             self.write(content)
 
         self._trim_growth_log()
+
+        # Auto-compression: trigger after trimming, safe from recursion
+        if self.needs_compression():
+            import logging as _logging
+            _logger = _logging.getLogger(__name__)
+            _logger.info(
+                f"Auto-compression triggered: KB size exceeds threshold "
+                f"({self.estimate_tokens():,} tokens)"
+            )
+            success, msg = self.compress()
+            if success:
+                _logger.info(f"Auto-compression completed: {msg}")
+            else:
+                _logger.info(f"Auto-compression skipped: {msg}")
+
         return new_count
 
     def _trim_growth_log(self) -> None:
@@ -141,9 +156,19 @@ class KBManager:
         if len(entry_indices) <= KB_MAX_INTERACTION_LOGS:
             return
 
-        # Remove the oldest entries (first ones in the section)
+        # Growth Log entries are ordered newest-first (append_to_section inserts at top).
+        # So entry_indices[0] = newest, entry_indices[-1] = oldest.
+        # We want to remove the OLDEST entries (from the end).
         remove_count = len(entry_indices) - KB_MAX_INTERACTION_LOGS
-        new_lines = lines[:entry_indices[0]] + lines[entry_indices[remove_count]:]
+        # Remove from the tail (oldest) by keeping only the first KB_MAX entries
+        cutoff = entry_indices[KB_MAX_INTERACTION_LOGS]
+        # Find where the last kept entry ends (next ## header or EOF)
+        end_of_kept = len(lines)
+        for i in range(cutoff, len(lines)):
+            if lines[i].strip().startswith("## ") and "Growth Log" not in lines[i]:
+                end_of_kept = i
+                break
+        new_lines = lines[:cutoff] + lines[end_of_kept:]
         self.write("\n".join(new_lines))
 
     def estimate_tokens(self, content: Optional[str] = None) -> int:
@@ -223,8 +248,10 @@ class KBManager:
         if len(all_entries) <= 3:
             return False, f"Growth Log가 {len(all_entries)}개로 충분히 적어 압축 불필요"
 
-        old_entries = all_entries[:-3]  # All but last 3
-        recent_entries = all_entries[-3:]  # Last 3
+        # Entries are ordered newest-first: all_entries[0] = newest.
+        # old_entries = oldest ones (tail), recent_entries = newest ones (head).
+        recent_entries = all_entries[:3]  # First 3 = newest
+        old_entries = all_entries[3:]     # Rest = oldest
 
         # Use LLM to summarize if available
         summary_text = ""
